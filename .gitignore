@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+htmlcov/
+*.egg-info/
+*.egg
+*.manifest
+*.spec
+
+# Virtual Environment
+.env
+.venv
+env/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build / Dist
+build/
+dist/
+*.egg-info/
+
+# Raspberry Pi specific
+*.bak
+*.tmp
+*.old
+
+# Hardware testing
+test_*.py
+
+# Data
+data/
+*.csv
+*.json
+*.db
+*.sqlite3
+
+# Secrets
+secrets/
+*.env
