@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!sourc
 import multiprocessing as mp
 from utils.logger import setup_logger, get_queue, listener_process
 
