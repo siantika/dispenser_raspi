@@ -24,10 +24,67 @@ import datetime
 import multiprocessing as mp
 from utils.logger import setup_logger, get_queue, listener_process
 from hardware.printer import UsbEscposDriver as Printer
+import time
 
 def worker(name):
     log = setup_logger(name, get_queue())
     log.info(f"Hello from {name}!")
+
+
+def test_all_barcodes(printer:Printer):
+    # -------------------
+    # EAN13 (12 digit input)
+    # -------------------
+    printer.text("=== TEST EAN13 ===\n")
+    printer.barcode("123456789012", "EAN13")
+    printer.text("\n\n")
+    time.sleep(0.5)
+
+    # -------------------
+    # EAN8 (7 digit input)
+    # -------------------
+    printer.text("=== TEST EAN8 ===\n")
+    printer.barcode("5512345", "EAN8")
+    printer.text("\n\n")
+    time.sleep(0.5)
+
+    # -------------------
+    # UPC-A (11 digit input)
+    # -------------------
+    printer.text("=== TEST UPC-A ===\n")
+    printer.barcode("12345678901", "UPCA")
+    printer.text("\n\n")
+    time.sleep(0.5)
+
+    # -------------------
+    # CODE39 (bisa alphanumeric)
+    # -------------------
+    printer.text("=== TEST CODE39 ===\n")
+    printer.barcode("ABC12345", "CODE39")
+    printer.text("\n\n")
+    time.sleep(0.5)
+
+    # -------------------
+    # ITF / Interleaved 2 of 5 (harus genap digit)
+    # -------------------
+    printer.text("=== TEST ITF ===\n")
+    printer.barcode("12345678", "ITF")  # 8 digit (genap)
+    printer.text("\n\n")
+    time.sleep(0.5)
+
+    # -------------------
+    # CODABAR (A-D allowed)
+    # -------------------
+    printer.text("=== TEST CODABAR ===\n")
+    printer.barcode("A123456A", "CODABAR")
+    printer.text("\n\n")
+    time.sleep(0.5)
+
+    # CUT
+    printer.cut()
+    printer.close()
+    print("ALL BARCODE TEST DONE ✔")
+
 
 if __name__ == '__main__':
     
@@ -46,10 +103,11 @@ if __name__ == '__main__':
     printer.text("\nFormat reset.\n\n")
 
     # ---- TEST 3: BARCODE ----
-    print("Printing barcode...")
-    printer.text("Barcode Test:\n")
-    printer.barcode("123456789012", "EAN13", height=80, width=3, pos="BELOW", font="A")
-    printer.text("\n\n")
+    # print("Printing barcode...")
+    # printer.text("Barcode Test:\n")
+    # printer.barcode("123456789012", "CODE128", height=80, width=3, pos="BELOW", font="A")
+    # printer.text("\n\n")
+    test_all_barcodes(printer)
 
     # ---- TEST 4: QR CODE ----
     print("Printing QR code...")
