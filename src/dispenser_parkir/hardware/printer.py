@@ -18,11 +18,10 @@ class PrinterDriver(Protocol):
 
 
 class UsbEscposDriver(PrinterDriver):
-    def __init__(self, vid: int, pid: int, timeout: float = 1.0):
+    def __init__(self, vid: int, pid: int,timeout: int = 1):
         self._p = Usb(
             idVendor=vid,
             idProduct=pid,
-            timeout=timeout,
             in_ep=0x81,   
             out_ep=0x01 
         )
