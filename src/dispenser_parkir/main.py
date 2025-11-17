@@ -1,3 +1,24 @@
+"""Bussiness Process 
+Init:
+ 1. Baca data tiket terakhir
+ 2. Baca servis dan deskripsinya
+ 3. Baca file-suara
+
+1. baca sensor open loops
+2a. jika ada mobil,
+    + Putar musik
+    + Baca tombol servis
+3. Pilih tombol servis
+4. putar suara tombol servis
+5. cetak tiket, kirim data, buka portal, Suara "Silakan Masuk"
+
+indikator: LED 
+inget isi watchdog
+
+"""
+
+
+
 #!sourc
 import multiprocessing as mp
 from utils.logger import setup_logger, get_queue, listener_process
