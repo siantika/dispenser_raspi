@@ -33,24 +33,43 @@ if __name__ == '__main__':
     
     printer = Printer(0x28e9, 0x0289)
     
+  # ---- TEST 1: TEXT ----
+    print("Printing text...")
     printer.text("==== TEST PRINT ====\n")
-    printer.text(f"Datetime: {datetime.datetime.now()}\n")
-    printer.text("--------------------\n")
+    printer.text("Printer OK!\n\n")
 
-    # Print text
-    printer.text("Hello from Python ESC/POS driver!\n")
-    printer.text("Ini adalah test printing.\n\n")
+    # ---- TEST 2: TEXT FORMAT ----
+    print("Testing text formatting...")
+    printer.set(align="center", text_type="B", width=2, height=2)
+    printer.text("BIG BOLD TEXT\n")
+    printer.set(align="left", text_type="NORMAL", width=1, height=1)
+    printer.text("\nFormat reset.\n\n")
 
-    # Print barcode
-    printer.text("Barcode (CODE128):\n")
-    printer.barcode("123456789012", "CODE128")
+    # ---- TEST 3: BARCODE ----
+    print("Printing barcode...")
+    printer.text("Barcode Test:\n")
+    printer.barcode("123456789012", "EAN13", height=80, width=3, pos="BELOW", font="A")
+    printer.text("\n\n")
 
-    # Cutting paper
+    # ---- TEST 4: QR CODE ----
+    print("Printing QR code...")
+    try:
+        printer._p.qr("https://example.com", size=6)
+    except Exception as e:
+        print("QR code error:", e)
+    printer.text("\n\n")
+
+
+    # ---- TEST 6: CUT ----
+    print("Cutting paper...")
     printer.cut()
 
-    # Close
+    # ---- TEST 7: CLOSE ----
+    print("Closing printer...")
     printer.close()
-    print("Berhasil print test ke printer!")
+
+    print("ALL TEST COMPLETED ✓")
+
 
     # Start listener
     # listener = mp.Process(target=listener_process, args=(get_queue(),), daemon=True)
