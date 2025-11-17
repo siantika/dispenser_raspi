@@ -39,9 +39,8 @@ class UsbEscposDriver(PrinterDriver):
         height: int = 64,
         width: int = 3,
         pos: str = "BELOW",
-        font: str = "A",
     ) -> None:
-        self._p.barcode(code, bc_type, height, width, pos, font)
+        self._p.barcode(code, bc_type, height, width, pos)
 
     def cut(self) -> None:
         self._p.cut()

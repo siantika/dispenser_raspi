@@ -97,15 +97,15 @@ if __name__ == '__main__':
 
     # ---- TEST 2: TEXT FORMAT ----
     print("Testing text formatting...")
-    printer.set(align="center", text_type="B", width=2, height=2)
+    printer.set(align="center", width=2, height=2)
     printer.text("BIG BOLD TEXT\n")
-    printer.set(align="left", text_type="NORMAL", width=1, height=1)
+    printer.set(align="left", width=1, height=1)
     printer.text("\nFormat reset.\n\n")
 
     # ---- TEST 3: BARCODE ----
     # print("Printing barcode...")
     # printer.text("Barcode Test:\n")
-    # printer.barcode("123456789012", "CODE128", height=80, width=3, pos="BELOW", font="A")
+    # printer.barcode("123456789012", "CODE128", height=80, width=3, pos="BELOW")
     # printer.text("\n\n")
     test_all_barcodes(printer)
 
