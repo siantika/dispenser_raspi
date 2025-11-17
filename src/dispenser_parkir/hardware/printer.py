@@ -15,6 +15,7 @@ class PrinterDriver(Protocol):
     ) -> None: ...
     def cut(self) -> None: ...
     def close(self) -> None: ...
+    def set(self, **kwargs): ...
 
 
 class UsbEscposDriver(PrinterDriver):
@@ -22,6 +23,7 @@ class UsbEscposDriver(PrinterDriver):
         self._p = Usb(
             idVendor=vid,
             idProduct=pid,
+            timeout=timeout,
             in_ep=0x81,   
             out_ep=0x01 
         )
@@ -46,3 +48,8 @@ class UsbEscposDriver(PrinterDriver):
 
     def close(self) -> None:
         self._p.close()
+        
+    def set(self, **kwargs):
+        self._p.set(**kwargs)
+        
+        
