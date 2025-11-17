@@ -31,7 +31,7 @@ def worker(name):
 
 if __name__ == '__main__':
     
-    printer = Printer()
+    printer = Printer(0x28e9, 0x0289)
     
     printer.text("==== TEST PRINT ====\n")
     printer.text(f"Datetime: {datetime.datetime.now()}\n")
