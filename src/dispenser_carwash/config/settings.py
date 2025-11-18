@@ -1,9 +1,19 @@
+import os
 from pathlib import Path
+
+# Directory of main.py
+BASE_DIR = Path(__file__).resolve().parent
+
+# Go two levels up to project root
+PROJECT_ROOT = BASE_DIR.parent.parent.parent
+
+# Path to the sounds folder
+SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
+
+print("Sounds folder path:", SOUNDS_DIR)
 
 
 class Settings:
-    BASE_DIR = Path(__file__).resolve().parent.parent
-
     class Hardware:
         GPIO_MODE = "BCM"
         BUTTON_PINS = {
