@@ -1,4 +1,4 @@
-"""Bussiness Process 
+"""Bussiness Process
 Init:
  1. Baca data tiket terakhir
  2. Baca servis dan deskripsinya
@@ -12,26 +12,26 @@ Init:
 4. putar suara tombol servis
 5. cetak tiket, kirim data, buka portal, Suara "Silakan Masuk"
 
-indikator: LED 
+indikator: LED
 inget isi watchdog
 
 """
 
-
-
 #!sourc
 import datetime
 import multiprocessing as mp
-from .utils.logger import setup_logger, get_queue, listener_process
-from .hardware.printer import UsbEscposDriver as Printer
 import time
+
+from .hardware.printer import UsbEscposDriver as Printer
+from .utils.logger import get_queue, listener_process, setup_logger
+
 
 def worker(name):
     log = setup_logger(name, get_queue())
     log.info(f"Hello from {name}!")
 
 
-def test_all_barcodes(printer:Printer):
+def test_all_barcodes(printer: Printer):
     # -------------------
     # EAN13 (12 digit input)
     # -------------------
@@ -86,11 +86,11 @@ def test_all_barcodes(printer:Printer):
     print("ALL BARCODE TEST DONE ✔")
 
 
-if __name__ == '__main__':
-    
-    printer = Printer(0x28e9, 0x0289)
-    
-  # ---- TEST 1: TEXT ----
+if __name__ == "__main__":
+
+    printer = Printer(0x28E9, 0x0289)
+
+    # ---- TEST 1: TEXT ----
     print("Printing text...")
     printer.text("==== TEST PRINT ====\n")
     printer.text("Printer OK!\n\n")
@@ -117,7 +117,6 @@ if __name__ == '__main__':
         print("QR code error:", e)
     printer.text("\n\n")
 
-
     # ---- TEST 6: CUT ----
     print("Cutting paper...")
     printer.cut()
@@ -127,7 +126,6 @@ if __name__ == '__main__':
     printer.close()
 
     print("ALL TEST COMPLETED ✓")
-
 
     # Start listener
     # listener = mp.Process(target=listener_process, args=(get_queue(),), daemon=True)
@@ -146,4 +144,3 @@ if __name__ == '__main__':
     # # Stop listener
     # get_queue().put(None)
     # listener.join()
-    

@@ -1,5 +1,6 @@
-from escpos.printer import Usb
 from typing import Protocol
+
+from escpos.printer import Usb
 
 
 class PrinterDriver(Protocol):
@@ -19,15 +20,10 @@ class PrinterDriver(Protocol):
 
 
 class UsbEscposDriver(PrinterDriver):
-    def __init__(self, vid: int, pid: int,timeout: int = 1):
+    def __init__(self, vid: int, pid: int, timeout: int = 1):
         self._p = Usb(
-            idVendor=vid,
-            idProduct=pid,
-            timeout=timeout,
-            in_ep=0x81,   
-            out_ep=0x01 
+            idVendor=vid, idProduct=pid, timeout=timeout, in_ep=0x81, out_ep=0x01
         )
-
 
     def text(self, txt: str) -> None:
         self._p.text(txt)
@@ -47,8 +43,6 @@ class UsbEscposDriver(PrinterDriver):
 
     def close(self) -> None:
         self._p.close()
-        
+
     def set(self, **kwargs):
         self._p.set(**kwargs)
-        
-        
