@@ -22,15 +22,18 @@ import datetime
 import multiprocessing as mp
 import time
 
-from gpiozero import Button
+from gpiozero import LED, Button
 
 from .hardware.input_bool import InputGpio
+from .hardware.out_bool import OutputGpio
 from .hardware.printer import UsbEscposDriver as Printer
 from .utils.logger import get_queue, listener_process, setup_logger
 
 input_btn_1 = Button(pin=5, pull_up=True, bounce_time=0.1)
-
+out_pin = LED(pin=23, initial_value=False)
 input_service_1 = InputGpio(input_btn_1)
+gate_controller = OutputGpio(out_pin)
+
 
 def worker(name):
     log = setup_logger(name, get_queue())
@@ -96,8 +99,20 @@ if __name__ == "__main__":
 
     printer = Printer(0x28E9, 0x0289)
     while True:
-        print(f"Nilai servis 1: {input_service_1.read_input()}")
-        time.sleep(0.8)
+        print("Turn ON")
+        gate_controller.turn_on()        # <- harus ada ()
+        time.sleep(1)
+
+        print("Turn OFF")
+        gate_controller.turn_off()       # <- harus ada ()
+        time.sleep(1)
+
+        print("Fire Pulse 0.5 detik")
+        gate_controller.firePulse(0.5)  # <- harus ada () dan beri parameter periode
+        time.sleep(0.5)
+
+        state = gate_controller.readState()  # <- harus ada ()
+        print("State sekarang:", state)
 
     # # ---- TEST 1: TEXT ----
     # print("Printing text...")
