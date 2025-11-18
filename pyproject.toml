@@ -3,7 +3,7 @@ name = "dispenser_carwash"
 version = "0.1.0"
 description = "Dispenser controller for carwash drive thru"
 authors = [{name = "Sian", email = "csiantika@gmail.com"}]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "python-escpos>=3.1",
     "gpiozero>=2.0.1",
