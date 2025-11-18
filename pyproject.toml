@@ -5,16 +5,16 @@ description = "Dispenser controller for carwash drive thru"
 authors = [{name = "Sian", email = "csiantika@gmail.com"}]
 requires-python = ">=3.12"
 dependencies = [
-    "python-escpos>=3.1", 
+    "python-escpos>=3.1",
 ]
 
+# Dependensi tambahan untuk development
 [project.optional-dependencies]
 dev = [
     "black",
     "isort",
     "pytest",
 ]
-
 
 [build-system]
 requires = ["setuptools>=65", "wheel"]
