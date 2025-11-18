@@ -10,4 +10,4 @@ class InputGpio(InputBool):
         self._hw_driver = hw_driver
         
     def read_input(self) -> bool:
-        return self._hw_driver._is_pressed
+        return self._hw_driver.is_pressed
