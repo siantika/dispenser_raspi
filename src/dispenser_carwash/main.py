@@ -22,8 +22,8 @@ inget isi watchdog
 #!sourc
 import datetime
 import multiprocessing as mp
-from utils.logger import setup_logger, get_queue, listener_process
-from hardware.printer import UsbEscposDriver as Printer
+from .utils.logger import setup_logger, get_queue, listener_process
+from .hardware.printer import UsbEscposDriver as Printer
 import time
 
 def worker(name):
