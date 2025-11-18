@@ -7,6 +7,7 @@ requires-python = ">=3.10"
 dependencies = [
     "python-escpos>=3.1",
     "gpiozero>=2.0.1",
+    "pygame>=2.6.1",
 ]
 
 # Dependensi tambahan untuk development
