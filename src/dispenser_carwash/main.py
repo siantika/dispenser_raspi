@@ -64,12 +64,12 @@ def setup_peripheral() -> Peripheral:
     # bungkus ke wrapper InputGpio
     # catatan: ini mengasumsikan InputGpio menerima object Button,
     # kalau implementasi kamu maunya pin int, ganti jadi pin=loop_pin, dll.
-    periph.input_loop = InputGpio(pin=loop_button)
+    periph.input_loop = InputGpio(loop_button)
 
-    periph.service_1 = InputGpio(pin=service_1_btn)
-    periph.service_2 = InputGpio(pin=service_2_btn)
-    periph.service_3 = InputGpio(pin=service_3_btn)
-    periph.service_4 = InputGpio(pin=service_4_btn)
+    periph.service_1 = InputGpio(service_1_btn)
+    periph.service_2 = InputGpio(service_2_btn)
+    periph.service_3 = InputGpio(service_3_btn)
+    periph.service_4 = InputGpio(service_4_btn)
 
     # ==== OUTPUT ====
     gate_pin = Settings.Hardware.GATE_CONTROLLER_PIN
@@ -80,8 +80,8 @@ def setup_peripheral() -> Peripheral:
 
     # bungkus ke wrapper OutputGpio
     # sama seperti di atas, ini mengasumsikan OutputGpio menerima object LED
-    periph.gate_controller = OutputGpio(pin=gate_led)
-    periph.indicator_status = OutputGpio(pin=status_led)
+    periph.gate_controller = OutputGpio(gate_led)
+    periph.indicator_status = OutputGpio(status_led)
 
     # ==== PRINTER & SOUND ====
     pygame.mixer.init()  # kalau PyGameSound belum inisialisasi mixer di dalam
