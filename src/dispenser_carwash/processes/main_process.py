@@ -337,9 +337,10 @@ class MainProcess:
 
             # Hanya sekali trigger SERVICE_SELECTED (saat masih di SELECTING_SERVICE)
             if self._selected_service is not None and self._fsm.state == State.SELECTING_SERVICE:
-                self._fsm.trigger(Event.SERVICE_SELECTED)
+                if not self._periph.sound.is_busy():
+                    self._fsm.trigger(Event.SERVICE_SELECTED)
                 
-
+                
             # GENERATE TICKET
             if self._fsm.state == State.GENERATING_TICKET:
                 service_id = self._selected_service.get("id")
