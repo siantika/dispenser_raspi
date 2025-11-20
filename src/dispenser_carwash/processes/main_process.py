@@ -119,7 +119,7 @@ class TicketGenerator:
 class PrintTicket:
     @staticmethod
     def _validate_data(data: dict) -> None:
-        required = {"barcode", "time_in", "service_name", "price"}
+        required = {"ticket_number", "time_in", "service_name", "price"}
         missing = required - data.keys()
         if missing:
             raise ValueError(f"Missing keys: {missing}")

@@ -22,8 +22,10 @@ logger = setup_logger(__name__)
 
 def get_sound() -> Dict[str, str]:
     BASE_DIR = Path(__file__).resolve().parent
-    PROJECT_ROOT = BASE_DIR.parent.parent.parent
+    PROJECT_ROOT = BASE_DIR.parent.parent
     SOUNDS_DIR = PROJECT_ROOT / "assets" / "sounds"
+    logger.info(f"base dir {BASE_DIR}")
+    logger.info(f"project root {PROJECT_ROOT}")
 
     if not SOUNDS_DIR.exists() or not SOUNDS_DIR.is_dir():
         logger.error(f"🚨 Sound directory not found: {SOUNDS_DIR}")
@@ -97,6 +99,8 @@ def setup_peripheral() -> Peripheral:
 def main():
     # Kalau di Linux biasanya tidak perlu, di Windows sering perlu:
     # mp.set_start_method("spawn", force=True)
+    get_sound()
+    while True: ...
 
     to_net: mp.Queue = mp.Queue()
     from_net: mp.Queue = mp.Queue()
