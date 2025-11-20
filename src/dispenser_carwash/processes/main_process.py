@@ -317,22 +317,26 @@ class MainProcess:
                 self._fsm.trigger(Event.GREETING_DONE)
 
             # PEMILIHAN SERVICE
-            if self._fsm.state == State.SELECTING_SERVICE:
+            if self._fsm.state == State.SELECTING_SERVICE and self._selected_service is None:
                 # Jika mobil keluar dan tidak jadi pilih servis
                 if not loop_active:
                     self._fsm.trigger(Event.LEAVE_WITHOUT_SELECTING)
                 else:
                     if self._periph.service_1.read_input():
                         self._selected_service = Utils.get_service(self._service_data, 1)
+                        self._periph.sound.stop()
                         self._periph.sound.play("service_basic")
                     elif self._periph.service_2.read_input():
                         self._selected_service = Utils.get_service(self._service_data, 2)
+                        self._periph.sound.stop()
                         self._periph.sound.play("service_complete")
                     elif self._periph.service_3.read_input():
                         self._selected_service = Utils.get_service(self._service_data, 3)
+                        self._periph.sound.stop()
                         self._periph.sound.play("service_perfect")
                     elif self._periph.service_4.read_input():
                         self._selected_service = Utils.get_service(self._service_data, 4)
+                        self._periph.sound.stop()
                         self._periph.sound.play("service_cuci_motor")
 
             # Hanya sekali trigger SERVICE_SELECTED (saat masih di SELECTING_SERVICE)
