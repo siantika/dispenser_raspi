@@ -1,34 +1,58 @@
-from typing import Protocol
+from typing import Dict, Optional, Protocol
 
 import pygame
 
+from dispenser_carwash.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
 
 class Sound(Protocol):
-    def load(self, file_path: str): ...
-    def play(self): ...
-    def stop(self): ...
+    def load(self, file_path: str) -> None: ...
+    def load_many(self, files: Dict[str, str]) -> None: ...
+    def play(self, title: str) -> None: ...
+    def stop(self) -> None: ...
     def is_busy(self) -> bool: ...
 
 
 class PyGameSound(Sound):
-    def __init__(self, hw_driver:pygame):
-        """
-        hw_driver: the pygame module (or a mock for testing)
-        """
+    def __init__(self, hw_driver: pygame):
         self._hw_driver = hw_driver
+
+        # pastikan mixer sudah di-init
         if not self._hw_driver.mixer.get_init():
             self._hw_driver.mixer.init()
-        self._sound = None
-        self._channel = None
 
-    def load(self, file_path: str):
-        self._sound = self._hw_driver.mixer.Sound(file_path)
+        # tidak perlu _sound kalau semua lewat load_many
+        self._sounds: Dict[str, pygame.mixer.Sound] = {}
+        self._channel: Optional[pygame.mixer.Channel] = None
 
-    def play(self):
-        if self._sound:
-            self._channel = self._sound.play()
+    def load(self, file_path: str) -> None:
+        """
+        Implementasi minimal supaya tetap memenuhi interface.
+        Misalnya: treat sebagai lagu bernama 'default'.
+        """
+        sound = self._hw_driver.mixer.Sound(file_path)
+        self._sounds["default"] = sound
 
-    def stop(self):
+    def load_many(self, files: Dict[str, str]) -> None:
+        """
+        files: dict {nama_lagu: path_file}
+        """
+        self._sounds = {}  # reset dulu kalau perlu
+
+        for name, path in files.items():
+            self._sounds[name] = self._hw_driver.mixer.Sound(path)
+
+    def play(self, title: str) -> None:
+        if title not in self._sounds:
+            logger.warning("%s is not in playlist", title)
+            return
+
+        sound = self._sounds[title]
+        self._channel = sound.play()
+
+    def stop(self) -> None:
         if self._channel:
             self._channel.stop()
 
