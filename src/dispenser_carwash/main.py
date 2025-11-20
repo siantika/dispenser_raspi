@@ -99,8 +99,6 @@ def setup_peripheral() -> Peripheral:
 def main():
     # Kalau di Linux biasanya tidak perlu, di Windows sering perlu:
     # mp.set_start_method("spawn", force=True)
-    get_sound()
-    while True: ...
 
     to_net: mp.Queue = mp.Queue()
     from_net: mp.Queue = mp.Queue()
