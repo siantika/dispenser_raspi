@@ -12,7 +12,7 @@ SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
 
 print("Sounds folder path:", SOUNDS_DIR)
 
-INIT_DATA_URL = "http://127.0.0.1:8000/init-data"
+INIT_DATA_URL = "http://192.168.100.29:8000/init-data"
 
 class Settings:
     class Hardware:
