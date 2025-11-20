@@ -338,7 +338,10 @@ class MainProcess:
             # Hanya sekali trigger SERVICE_SELECTED (saat masih di SELECTING_SERVICE)
             if self._selected_service is not None and self._fsm.state == State.SELECTING_SERVICE:
                 if not self._periph.sound.is_busy():
+                    self._periph.sound.stop()
                     self._fsm.trigger(Event.SERVICE_SELECTED)
+                else:
+                    logger.info(f"suara sedang: {self._periph.sound.is_busy()}")
                 
                 
             # GENERATE TICKET
