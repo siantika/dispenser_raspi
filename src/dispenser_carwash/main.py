@@ -86,7 +86,7 @@ def setup_peripheral() -> Peripheral:
     # ==== PRINTER & SOUND ====
     pygame.mixer.init()  # kalau PyGameSound belum inisialisasi mixer di dalam
 
-    periph.printer = UsbEscposDriver()
+    periph.printer = UsbEscposDriver(vid=0x28e9, pid=0x0289)
     periph.sound = PyGameSound(pygame)
     sound_files = get_sound()
     periph.sound.load_many(sound_files)
