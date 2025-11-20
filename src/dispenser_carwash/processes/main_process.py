@@ -36,6 +36,7 @@ class State(Enum):
     SENDING_DATA = auto()
     PRINTING_TICKET = auto()
     GATE_OPEN = auto()
+    VEHICLE_STAYING = auto()
     
 class Event(Enum):
     ARRIVED = auto()
@@ -47,6 +48,7 @@ class Event(Enum):
     DATA_SENT = auto()
     PRINT_DONE = auto()
     GATE_OPENED = auto()
+    VEHICLE_ENTER = auto()
 
 
 
@@ -62,7 +64,8 @@ class MainFSM:
             (State.GENERATING_TICKET, Event.TICKET_GENERATED) : State.SENDING_DATA,
             (State.SENDING_DATA, Event.DATA_SENT) : State.PRINTING_TICKET,
             (State.PRINTING_TICKET, Event.PRINT_DONE) : State.GATE_OPEN,
-            (State.GATE_OPEN, Event.GATE_OPENED): State.IDLE,
+            (State.GATE_OPEN, Event.GATE_OPENED): State.VEHICLE_STAYING,
+            (State.VEHICLE_STAYING, Event.VEHICLE_ENTER): State.IDLE,
         }
         
     def trigger(self, event: Event)-> None:
@@ -155,7 +158,7 @@ class PrintTicket:
         # ============================
         # Info waktu
         # ============================
-        driver.set(font="b", bold=False, width=1, height=1, align="left")
+        driver.set(font="b", bold=False, width=1, height=1, align="center")
         driver.text(str(data["time_in"]))
         driver.text("\n")
 
@@ -169,14 +172,14 @@ class PrintTicket:
             width=2,
             pos="BELOW"
         )
-        driver.text("\n\n")
+        driver.text("\n")
 
         # ============================
         # Nama paket
         # ============================
         driver.set(font="b", bold=True, width=2, height=2, align="center")
         driver.text(str(data["service_name"]))
-        driver.text("\n\n")
+        driver.text("\n")
 
         # ============================
         # Harga
@@ -299,6 +302,8 @@ class MainProcess:
 
             # RESET kontekstual saat IDLE
             if self._fsm.state == State.IDLE:
+                self._periph.sound.stop()
+                self._periph.gate_controller.turn_off()
                 self._selected_service = None
                 self._payload = {}
 
@@ -368,8 +373,13 @@ class MainProcess:
             if self._fsm.state == State.GATE_OPEN:
                 self._periph.gate_controller.firePulse(0.5)
                 self._periph.sound.stop()
-                self._periph.sound.play("enter")
+                self._periph.sound.play("taking_ticket")
                 self._fsm.trigger(Event.GATE_OPENED)
+            
+            if self._fsm.state == State.VEHICLE_STAYING:
+                if not self._periph.input_loop.read_input():
+                    self._fsm.trigger(Event.VEHICLE_ENTER)
+                
 
             # Biar CPU ga 100%
             time.sleep(0.01)

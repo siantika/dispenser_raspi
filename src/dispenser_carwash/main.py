@@ -73,7 +73,7 @@ def setup_peripheral() -> Peripheral:
     periph.service_3 = InputGpio(service_3_btn)
     periph.service_4 = InputGpio(service_4_btn)
 
-    # ==== OUTPUT ====
+    # ==== OUTPUT ====s sou
     gate_pin = Settings.Hardware.GATE_CONTROLLER_PIN
     gate_led = LED(pin=gate_pin)
 
@@ -127,3 +127,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
