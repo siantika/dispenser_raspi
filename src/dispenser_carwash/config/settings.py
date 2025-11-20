@@ -12,17 +12,20 @@ SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
 
 print("Sounds folder path:", SOUNDS_DIR)
 
+INIT_DATA_URL = "http://127.0.0.1:8000/init-data"
 
 class Settings:
     class Hardware:
         GPIO_MODE = "BCM"
+        LOOP_SENSOR_PIN = 5
         BUTTON_PINS = {
-            "service_1": 17,
-            "service_2": 27,
-            "service_3": 22,
-            "service_4": 23,
+            "service_1": 6,
+            "service_2": 13,
+            "service_3": 19,
+            "service_4": 26,
         }
-        LED_PINS = {"ready": 5, "processing": 6, "error": 13}
+        GATE_CONTROLLER_PIN = 23 
+        LED_PINS = 24
 
     class Server:
         URL = "https://example.com/api/parking"
