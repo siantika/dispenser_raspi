@@ -2,11 +2,11 @@ import multiprocessing as mp
 import time
 from datetime import datetime
 from enum import Enum, auto
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import requests
 
-from dispenser_carwash.config import settings
+from dispenser_carwash.config.settings import Settings
 from dispenser_carwash.hardware.input_bool import InputBool
 from dispenser_carwash.hardware.out_bool import OutputBool
 from dispenser_carwash.hardware.printer import PrinterDriver
@@ -15,7 +15,10 @@ from dispenser_carwash.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-
+""" Uji sistem crash : eg printer dicabut atau koneksi mati.
+Untuk sekarang coba satu thread (net work di thread ini).
+button juga dicek saat noise
+"""
 
 class Peripheral:
     input_loop: InputBool
@@ -50,8 +53,6 @@ class Event(Enum):
     GATE_OPENED = auto()
     VEHICLE_ENTER = auto()
 
-
-
 class MainFSM:
     def __init__(self):
         self.state = State.IDLE
@@ -66,6 +67,7 @@ class MainFSM:
             (State.PRINTING_TICKET, Event.PRINT_DONE) : State.GATE_OPEN,
             (State.GATE_OPEN, Event.GATE_OPENED): State.VEHICLE_STAYING,
             (State.VEHICLE_STAYING, Event.VEHICLE_ENTER): State.IDLE,
+            
         }
         
     def trigger(self, event: Event)-> None:
@@ -77,8 +79,6 @@ class MainFSM:
         next_state = self.transitions[key]
         logger.info(f"{self.state.name} --({event.name})--> {next_state.name}")
         self.state = next_state
-
-
 
 """ Utils """
 class TicketGenerator:
@@ -195,56 +195,106 @@ class PrintTicket:
         driver.cut()
 
 
+class BaseRequester:
+    """
+    Kelas dasar untuk handle:
+    - retry
+    - delay
+    - logging
+    - parsing JSON -> dict
+    """
 
-class InitData:
     def __init__(self, retries: int = 3, delay: int = 2):
-        """
-        retries -> jumlah percobaan ulang jika gagal
-        delay   -> waktu tunggu (detik) antar percobaan
-        """
-        self._data = None
         self._retries = retries
         self._delay = delay
-        self._get_init_data()
 
-    def _get_init_data(self):
+    def _request_json(
+        self,
+        label: str,
+        method: str,
+        url: str,
+        timeout: int = 5,
+        **kwargs,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        method: "GET" / "POST" / dst
+        label : nama operasi untuk log (misal: 'init data', 'send data')
+        url   : endpoint
+        kwargs: diteruskan ke requests.request (json=..., data=..., params=..., dll)
+        """
         for attempt in range(1, self._retries + 1):
             try:
-                logger.info(f"🔍 Fetch init data (attempt {attempt}/{self._retries})...")
-                response = requests.get(settings.INIT_DATA_URL, timeout=5)
+                logger.info(
+                    f"🔄 {label} (attempt {attempt}/{self._retries})..."
+                )
+
+                response = requests.request(
+                    method=method.upper(),
+                    url=url,
+                    timeout=timeout,
+                    **kwargs,
+                )
                 response.raise_for_status()
 
-                self._data = response.json()
+                data = response.json()
+                if not isinstance(data, dict):
+                    raise ValueError("Response JSON harus berupa dict")
 
-                if not isinstance(self._data, dict):
-                    raise ValueError("Response harus dict")
-
-                logger.info("✔ Init data berhasil diperoleh")
-                return  # stop retry jika sukses
+                logger.info(f"✔ {label} berhasil")
+                return data
 
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-                logger.warning(f"⚠ Koneksi gagal: {e}")
+                logger.warning(f"⚠ {label} - Koneksi gagal: {e}")
             except requests.exceptions.HTTPError as e:
-                logger.warning(f"🚨 HTTP Error: {e}")
-            except (requests.exceptions.JSONDecodeError, ValueError):
-                logger.warning("⚠ Response tidak valid JSON atau format tidak sesuai")
+                logger.warning(f"🚨 {label} - HTTP Error: {e}")
+            except (requests.exceptions.JSONDecodeError, ValueError) as e:
+                logger.warning(f"⚠ {label} - Response tidak valid: {e}")
             except Exception as e:
-                logger.warning(f"❗ Error tak terduga: {e}")
+                logger.warning(f"❗ {label} - Error tak terduga: {e}")
 
             if attempt < self._retries:
-                logger.info(f"⏳ Retry dalam {self._delay} detik...")
+                logger.info(f"⏳ {label} - Retry dalam {self._delay} detik...")
                 time.sleep(self._delay)
 
-        logger.error("❌ Gagal mendapatkan init data setelah semua percobaan")
-        self._data = None  # pastikan None jika gagal total
+        logger.error(f"❌ {label} - Gagal setelah semua percobaan")
+        return None
 
-    def get_last_ticket_number(self):
+
+class InitData(BaseRequester):
+    def __init__(
+        self,
+        url: str,
+        retries: int = 3,
+        delay: int = 2,
+    ):
+        """
+        Init data dari endpoint:
+        - last_ticket_number
+        - service_data
+        """
+        super().__init__(retries=retries, delay=delay)
+
+        self._url = url
+        self._data: Optional[Dict[str, Any]] = None
+
+        # langsung fetch saat inisialisasi
+        self._fetch_init_data()
+
+    def _fetch_init_data(self) -> None:
+        data = self._request_json(
+            label="Fetch init data",
+            method="GET",
+            url=self._url,
+        )
+        self._data = data  # bisa None kalau gagal
+
+    def get_last_ticket_number(self) -> Optional[int]:
         if self._data and "last_ticket_number" in self._data:
             return self._data["last_ticket_number"]
         logger.warning("⚠ last_ticket_number tidak tersedia")
         return None
 
-    def get_service_data(self):
+    def get_service_data(self) -> Optional[list]:
         if not self._data:
             logger.warning("⚠ Belum ada init data (request gagal)")
             return None
@@ -261,6 +311,42 @@ class InitData:
 
         return data
 
+
+class NetworkManager(BaseRequester):
+    def __init__(
+        self,
+        url: str,
+        retries: int = 3,
+        delay: int = 2,
+    ):
+        """
+        Kirim data ke server dengan POST + retry.
+        """
+        super().__init__(retries=retries, delay=delay)
+
+        self._url = url
+        self._last_response: Optional[Dict[str, Any]] = None
+
+    def send_data(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Kirim payload ke server.
+        Return:
+            dict -> response JSON
+            None -> kalau gagal
+        """
+        data = self._request_json(
+            label="Kirim data ke server",
+            method="POST",
+            url=self._url,
+            json=payload,  # ganti ke data=payload kalau server pakai form-url-encoded
+        )
+        self._last_response = data
+        return data
+
+    def get_last_response(self) -> Optional[Dict[str, Any]]:
+        if self._last_response is None:
+            logger.warning("⚠ Belum ada response yang tersimpan")
+        return self._last_response
 
 class Utils:
     @staticmethod    
@@ -282,7 +368,8 @@ class MainProcess:
         self._periph = periph
         self._fsm = fsm
         self._ticket_gen = None 
-        self._init_data = InitData()
+        self._init_data = InitData(Settings.Server.INIT_DATA_URL)
+        self._network = NetworkManager(Settings.Server.SEND_URL)
 
     def run(self):
         # Ambil data awal dari server
@@ -368,9 +455,14 @@ class MainProcess:
 
             # KIRIM DATA KE SERVER
             if self._fsm.state == State.SENDING_DATA:
-                with self._lock:
-                    self._to_net.put(self._payload, timeout=3)
-                self._fsm.trigger(Event.DATA_SENT)
+                """ Bisa pakai multiprocessing tapi sekarang single thread dulu"""
+                if self._payload is not None:
+                    self._network.send_data(self._payload)
+                    self._fsm.trigger(Event.DATA_SENT)
+                else:
+                    logger.warning(f"Payload is None. data:{self._payload}")
+                    self._fsm.state = State.IDLE
+    
 
             # PRINT TICKET
             if self._fsm.state == State.PRINTING_TICKET:
