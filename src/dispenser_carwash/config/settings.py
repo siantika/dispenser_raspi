@@ -12,7 +12,6 @@ SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
 
 print("Sounds folder path:", SOUNDS_DIR)
 
-INIT_DATA_URL = "http://192.168.100.29:8000/init-data"
 
 class Settings:
     class Hardware:
@@ -28,7 +27,9 @@ class Settings:
         LED_PINS = 24
 
     class Server:
-        URL = "https://example.com/api/parking"
+        SEND_URL = "http://192.168.100.29:8000/api/ticket"
+        INIT_DATA_URL = "http://192.168.100.29:8000/api/init-data"
+
         TIMEOUT = 5
         RETRY_INTERVAL = 3
 
