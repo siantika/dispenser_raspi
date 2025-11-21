@@ -27,7 +27,7 @@ class Settings:
         LED_PINS = 24
 
     class Server:
-        SEND_URL = "http://192.168.100.29:8000/api/ticket"
+        SEND_URL = "http://192.168.100.29:8000/api/tickets"
         INIT_DATA_URL = "http://192.168.100.29:8000/api/init-data"
 
         TIMEOUT = 5
