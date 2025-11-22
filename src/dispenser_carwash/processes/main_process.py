@@ -456,12 +456,15 @@ class MainProcess:
             # KIRIM DATA KE SERVER
             if self._fsm.state == State.SENDING_DATA:
                 """ Bisa pakai multiprocessing tapi sekarang single thread dulu"""
-                if self._payload is not None:
-                    self._network.send_data(self._payload)
-                    self._fsm.trigger(Event.DATA_SENT)
-                else:
-                    logger.warning(f"Payload is None. data:{self._payload}")
-                    self._fsm.state = State.IDLE
+                with self._lock:
+                    self._to_net.put(self._payload, timeout=5)
+                self._fsm.trigger(Event.DATA_SENT)
+                # if self._payload is not None:
+                #     self._network.send_data(self._payload)
+                #     self._fsm.trigger(Event.DATA_SENT)
+                # else:
+                #     logger.warning(f"Payload is None. data:{self._payload}")
+                #     self._fsm.state = State.IDLE
     
 
             # PRINT TICKET
