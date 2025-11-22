@@ -13,6 +13,7 @@ from dispenser_carwash.hardware.sound import PyGameSound
 from dispenser_carwash.processes.main_process import (
     MainFSM,
     MainProcess,
+    NetworkManager,
     Peripheral,
 )
 from dispenser_carwash.utils.logger import setup_logger
@@ -96,8 +97,43 @@ def setup_peripheral() -> Peripheral:
     return periph
 
 
+def network_process(net: NetworkManager, to_net: mp.Queue, from_net: mp.Queue):
+    REQUIRED_KEYS = {"ticket_number", "time_in", "service_name", "price"}
+
+    while True:
+        # Blocking read, tidak perlu .empty()
+        payload = to_net.get()
+
+        # Opsional: mekanisme stop (sentinel)
+        if payload == "__STOP__":
+            logger.info("🛑 Network process stopping...")
+            break
+
+        # 1. Pastikan payload dict
+        if not isinstance(payload, dict):
+            logger.error(f"❌ Payload bukan dict: {payload}")
+            continue
+
+        # 2. Validasi key penting
+        missing_keys = REQUIRED_KEYS - payload.keys()
+        if missing_keys:
+            logger.error(f"⚠ Payload kurang key: {missing_keys} -> {payload}")
+            continue
+
+        # 3. (Opsional) Validasi value kosong atau None
+        if any(v in (None, "") for v in payload.values()):
+            logger.warning(f"⚠ Ada data None/kosong: {payload}")
+
+        # 4. Kirim ke network
+        try:
+            logger.info(f"📡 Mengirim ke server: {payload}")
+            net.send_data(payload)
+        except Exception as e:
+            logger.error(f"🚨 Gagal kirim data ke server: {e}")
+            from_net.put({"status": "error", "detail": str(e)})
+
 def main():
-    # Kalau di Linux biasanya tidak perlu, di Windows sering perlu:
+    # Untuk Windows:
     # mp.set_start_method("spawn", force=True)
 
     to_net: mp.Queue = mp.Queue()
@@ -115,14 +151,34 @@ def main():
         fsm=fsm,
     )
 
+    network = NetworkManager(Settings.Server.SEND_URL)
+
+    # 🔹 Jalankan network_process di proses terpisah
+    net_proc = mp.Process(
+        target=network_process,
+        args=(network, to_net, from_net),
+        daemon=True,          # supaya ikut mati kalau main process mati
+    )
+    net_proc.start()
+
     logger.info("🚗 Dispenser carwash starting...")
 
     try:
         main_process.run()
+
     except KeyboardInterrupt:
         logger.info("🛑 Stopped by user (KeyboardInterrupt)")
+
     except Exception as e:
         logger.exception(f"❗ Unhandled error in main: {e}")
+
+    finally:
+        # Opsional: hentikan network_process dengan rapi
+        try:
+            to_net.put("__STOP__")   # kirim sentinel
+            net_proc.join(timeout=2)
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
