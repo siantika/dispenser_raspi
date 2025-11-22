@@ -9,7 +9,7 @@ import requests
 from dispenser_carwash.config.settings import Settings
 from dispenser_carwash.hardware.input_bool import InputBool
 from dispenser_carwash.hardware.out_bool import OutputBool
-from dispenser_carwash.hardware.printer import PrinterDriver
+from dispenser_carwash.hardware.printer import PrinterDriver, PrinterUnavailable
 from dispenser_carwash.hardware.sound import Sound
 from dispenser_carwash.utils.logger import setup_logger
 
@@ -138,62 +138,72 @@ class PrintTicket:
             "price": "25000"
         }
         """
+        
+        try:
 
-        # 🔍 Validasi data
-        PrintTicket._validate_data(data)
+            # 🔍 Validasi data
+            PrintTicket._validate_data(data)
 
-        # ============================
-        # Header: WELCOME + nama usaha
-        # ============================
-        driver.set(font="b", bold=True, width=2, height=2, align="center")
-        driver.text("WELCOME\n")
-        driver.text("BALI DRIVE THRU CARWASH\n")
+            # ============================
+            # Header: WELCOME + nama usaha
+            # ============================
+            driver.set(font="b", bold=True, width=2, height=2, align="center")
+            driver.text("WELCOME\n")
+            driver.text("BALI DRIVE THRU CARWASH\n")
 
-        # ============================
-        # Alamat (font normal)
-        # ============================
-        driver.set(font="b", bold=False, width=1, height=1, align="center")
-        driver.text("Jl. Mahendradata Selatan No.19 Denpasar, Bali\n\n")
+            # ============================
+            # Alamat (font normal)
+            # ============================
+            driver.set(font="b", bold=False, width=1, height=1, align="center")
+            driver.text("Jl. Mahendradata Selatan No.19 Denpasar, Bali\n\n")
 
-        # ============================
-        # Info waktu
-        # ============================
-        driver.set(font="b", bold=False, width=1, height=1, align="center")
-        driver.text(str(data["time_in"]))
-        driver.text("\n")
+            # ============================
+            # Info waktu
+            # ============================
+            driver.set(font="b", bold=False, width=1, height=1, align="center")
+            driver.text(str(data["time_in"]))
+            driver.text("\n")
 
-        # ============================
-        # Barcode
-        # ============================
-        driver.barcode(
-            str(data["ticket_number"]),
-            "EAN13",
-            height=64,
-            width=2,
-            pos="BELOW"
-        )
-        driver.text("\n")
+            # ============================
+            # Barcode
+            # ============================
+            driver.barcode(
+                str(data["ticket_number"]),
+                "EAN13",
+                height=64,
+                width=2,
+                pos="BELOW"
+            )
+            driver.text("\n")
 
-        # ============================
-        # Nama paket
-        # ============================
-        driver.set(font="b", bold=True, width=2, height=2, align="center")
-        driver.text(str(data["service_name"]))
-        driver.text("\n")
+            # ============================
+            # Nama paket
+            # ============================
+            driver.set(font="b", bold=True, width=2, height=2, align="center")
+            driver.text(str(data["service_name"]))
+            driver.text("\n")
 
-        # ============================
-        # Harga
-        # ============================
-        driver.set(font="b", bold=False, width=1, height=1, align="center")
-        driver.text("Rp.")
-        driver.text(str(data["price"]))
-        driver.text("\n")
+            # ============================
+            # Harga
+            # ============================
+            driver.set(font="b", bold=False, width=1, height=1, align="center")
+            driver.text("Rp.")
+            driver.text(str(data["price"]))
+            driver.text("\n")
 
-        # ============================
-        # Cut kertas
-        # ============================
-        driver.cut()
-
+            # ============================
+            # Cut kertas
+            # ============================
+            driver.cut()
+        except PrinterUnavailable as e:
+            # Di sini program TIDAK crash, hanya log error.
+            logger.error(f"❌ Gagal print tiket (printer tidak siap): {e}")
+            # Di sini kamu bisa:
+            # - nyalakan LED error
+            # - kirim status ke network
+            # - simpan state "tiket belum tercetak"
+            # Tapi jangan raise lagi kalau memang ingin program tetap jalan.
+            
 
 class BaseRequester:
     """
