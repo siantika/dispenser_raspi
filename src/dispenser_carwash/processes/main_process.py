@@ -128,7 +128,7 @@ class PrintTicket:
             raise ValueError(f"Missing keys: {missing}")
 
     @staticmethod
-    def print_ticket(driver: PrinterDriver, data: Dict[str, Any]) -> None:
+    def print_ticket(driver: PrinterDriver, data: Dict[str, Any]) -> bool:
         """
         Struktur data yang benar:
         data = {
@@ -195,6 +195,8 @@ class PrintTicket:
             # Cut kertas
             # ============================
             driver.cut()
+            return True
+        
         except PrinterUnavailable as e:
             # Di sini program TIDAK crash, hanya log error.
             logger.error(f"❌ Gagal print tiket (printer tidak siap): {e}")
@@ -203,7 +205,11 @@ class PrintTicket:
             # - kirim status ke network
             # - simpan state "tiket belum tercetak"
             # Tapi jangan raise lagi kalau memang ingin program tetap jalan.
-            
+            return False
+        
+        except Exception as e:
+            logger.error(f"error: {e}")
+            return False
 
 class BaseRequester:
     """
@@ -479,9 +485,13 @@ class MainProcess:
 
             # PRINT TICKET
             if self._fsm.state == State.PRINTING_TICKET:
-                PrintTicket.print_ticket(self._periph.printer, self._payload)
+                ok = PrintTicket.print_ticket(self._periph.printer, self._payload)
+                if not ok:
+                    # misal: set indikator error, atau kirim info ke server
+                    # tapi JANGAN raise Exception lagi
+                    logger.warning("⚠ Tiket tidak tercetak karena printer tidak tersedia")
                 self._fsm.trigger(Event.PRINT_DONE)
-
+                
             # BUKA GATE
             if self._fsm.state == State.GATE_OPEN:
                 self._periph.gate_controller.firePulse(0.5)
