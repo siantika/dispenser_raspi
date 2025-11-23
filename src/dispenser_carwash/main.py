@@ -99,7 +99,7 @@ def setup_peripheral() -> Peripheral:
         logger.exception("Failed to intialize sounds: {e}")
         # stuck
         # send signal to LED
-        while True: ...
+        # while True: ...
 
     return periph
 
