@@ -27,7 +27,7 @@ build-backend = "setuptools.build_meta"
 # Tool configurations (minimal)
 # -------------------------------
 [tool.black]
-line-length = 88
+line-length = 70
 
 [tool.isort]
 profile = "black"
