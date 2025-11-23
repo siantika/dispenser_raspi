@@ -49,6 +49,28 @@ def remove_pidfile():
 
 
 
+def get_sound() -> Dict[str, str]:
+    BASE_DIR = Path(__file__).resolve().parent
+    PROJECT_ROOT = BASE_DIR.parent.parent
+    SOUNDS_DIR = PROJECT_ROOT / "assets" / "sounds"
+    logger.info(f"base dir {BASE_DIR}")
+    logger.info(f"project root {PROJECT_ROOT}")
+
+    if not SOUNDS_DIR.exists() or not SOUNDS_DIR.is_dir():
+        logger.error(f"🚨 Sound directory not found: {SOUNDS_DIR}")
+        return {}
+
+    sounds = {
+        f.stem: str(f.resolve())
+        for f in SOUNDS_DIR.iterdir()
+        if f.is_file() and f.suffix.lower() in (".mp3", ".wav")
+    }
+
+    if not sounds:
+        logger.warning(f"⚠ No sound files found in: {SOUNDS_DIR}")
+
+    logger.info(f"🎵 Loaded {len(sounds)} sound files from {SOUNDS_DIR}")
+    return sounds
 
 # =====================================================
 #  Setup peripheral
@@ -94,7 +116,7 @@ def setup_peripheral() -> Peripheral:
     periph.sound = PyGameSound(pygame)
     
     try:
-        sound_files = FilePath.get_sounds()
+        sound_files = get_sound()
         periph.sound.load_many(sound_files)
     except Exception:
         logger.exception("Failed to intialize sounds")
