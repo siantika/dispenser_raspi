@@ -1,6 +1,6 @@
 from typing import Protocol
 
-import usb.core  # dari pyusb
+import usb.core
 from escpos.printer import Usb
 
 from dispenser_carwash.utils.logger import setup_logger
@@ -9,7 +9,6 @@ logger = setup_logger(__name__)
 
 
 class PrinterUnavailable(Exception):
-    """Dipakai saat printer tidak terhubung / hilang."""
     pass
 
 
@@ -43,6 +42,7 @@ class UsbEscposDriver(PrinterDriver):
             logger.info(
                 f"🖨️  Connecting ESC/POS USB printer {hex(self._vid)}:{hex(self._pid)}"
             )
+            """ It is mandatory to put in_ep and out_ep"""
             self._p = Usb(
                 idVendor=self._vid,
                 idProduct=self._pid,
@@ -54,31 +54,26 @@ class UsbEscposDriver(PrinterDriver):
             logger.error(f"❌ Tidak bisa konek ke printer: {e}")
             self._p = None
         except Exception as e:
-            # jaga-jaga kalau escpos lempar error lain
+            """ General Exception for handling uncovered error """
             logger.error(f"❌ Gagal konek ke printer (Exception): {e}")
             self._p = None
 
     def _ensure_connected(self):
         """
-        Pastikan self._p ada.
-        Kalau tidak ada -> coba connect.
-        Kalau masih gagal -> raise PrinterUnavailable.
+        if printer is connected (stored in self._p), it will return the object otherwise it will return None.
+        Here we try to connect if it is not connected and rasie Exception it if still not connected
         """
         if self._p is None:
             self._connect()
         if self._p is None:
-            raise PrinterUnavailable("Printer tidak terhubung")
+            raise PrinterUnavailable("Printer is not connected")
 
     def _safe_call(self, method_name: str, *args, **kwargs):
         """
-        Jalankan fungsi low-level ESC/POS dengan auto-reconnect.
-        Kalau printer mati / dicabut:
-          - coba reconnect sekali
-          - kalau masih gagal -> raise PrinterUnavailable
-        NOTE: kita pakai nama method, bukan bound func, supaya setelah reconnect
-              method dipanggil dari objek Usb yang baru.
+        wrapper for low-function printer. It make sure to check printer's connection \
+        whenever we call the printer function. So that, it prevents crash. It also provide reconnect mechanism
+ 
         """
-        # Dua percobaan: pertama pakai koneksi sekarang, kedua setelah reconnect
         for attempt in (1, 2):
             self._ensure_connected()
 
@@ -93,50 +88,51 @@ class UsbEscposDriver(PrinterDriver):
                 # 19 = ENODEV: "No such device (it may have been disconnected)"
                 if e.errno == 19:
                     logger.warning(
-                        f"⚠ Printer USB hilang (USBError 19), attempt {attempt}. "
-                        "Coba reconnect..."
+                        f"USB printer is  disconnected (USBError 19), attempt {attempt}. "
+                        "Trying to reconnect..."
                     )
-                    # anggap koneksi lama sudah mati
+                    # Since it goes to this exception, we assume the old connection is broken
+                    # so we assign it as None for make it sure
                     self._p = None
 
                     if attempt == 2:
-                        logger.error("❌ Reconnect gagal, printer masih tidak ditemukan")
-                        raise PrinterUnavailable("Printer terputus (USBError 19)")
+                        logger.error("Failed to reconnect, Printer still disconnect")
+                        raise PrinterUnavailable("Printer disconnect (USBError 19)")
 
-                    # attempt 1 -> lanjut ke iterasi berikutnya (akan _ensure_connected() lagi)
+                    # attempt 1 -> continue to  _ensure_connected() again
                     continue
 
-                # error USB lain → bungkus sebagai PrinterUnavailable
-                logger.error(f"❌ Error USB printer: {e}")
+                # Another USB error (uncovered)
+                logger.error(f"USB error printer: {e}")
                 raise PrinterUnavailable(f"Error USB printer: {e}")
 
             except OSError as e:
-                # Beberapa platform pakai OSError errno 19
+                # For another paltform, it uses OSError errno 19
                 if getattr(e, "errno", None) == 19:
                     logger.warning(
-                        f"⚠ OSError 19: printer hilang, attempt {attempt}. "
-                        "Coba reconnect..."
+                        f"⚠ OSError 19: printer disconnect, attempt {attempt}. "
+                        "Trying to reconnect..."
                     )
                     self._p = None
 
                     if attempt == 2:
-                        raise PrinterUnavailable("Printer terputus (OSError 19)")
+                        raise PrinterUnavailable("Printer disconect (OSError 19)")
 
                     continue
 
-                logger.error(f"❌ OSError printer: {e}")
+                logger.error(f"OSError printer: {e}")
                 raise PrinterUnavailable(f"Error OS printer: {e}")
 
             except Exception as e:
-                # Error lain yang tidak kita kenali -> bungkus saja
-                logger.error(f"❌ Error tidak dikenal pada printer: {e}")
+                # uncovered error
+                logger.error(f" Unidentified error: {e}")
                 self._p = None
-                raise PrinterUnavailable(f"Error printer tidak dikenal: {e}")
+                raise PrinterUnavailable("Unidentified error")
 
-        # Kalau entah bagaimana keluar loop tanpa return/raise, anggap tidak tersedia
+        # Whatever it goes out the loop or something, it is categorized as disconnected
         raise PrinterUnavailable("Printer tidak tersedia (unknown)")
 
-    # ==== Wrapper method publik ====
+    # ==== Wrapper Public Method ====
     def text(self, txt: str) -> None:
         self._safe_call("text", txt)
 
