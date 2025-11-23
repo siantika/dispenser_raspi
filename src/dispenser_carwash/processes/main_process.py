@@ -15,11 +15,6 @@ from dispenser_carwash.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-""" Uji sistem crash : eg printer dicabut atau koneksi mati.
-Untuk sekarang coba satu thread (net work di thread ini).
-button juga dicek saat noise
-"""
-
 class Peripheral:
     input_loop: InputBool
     service_1: InputBool
@@ -200,10 +195,6 @@ class PrintTicket:
         except PrinterUnavailable as e:
             # Di sini program TIDAK crash, hanya log error.
             logger.error(f"❌ Gagal print tiket (printer tidak siap): {e}")
-            # Di sini kamu bisa:
-            # - nyalakan LED error
-            # - kirim status ke network
-            # - simpan state "tiket belum tercetak"
             # Tapi jangan raise lagi kalau memang ingin program tetap jalan.
             return False
         
@@ -475,13 +466,7 @@ class MainProcess:
                 with self._lock:
                     self._to_net.put(self._payload, timeout=5)
                 self._fsm.trigger(Event.DATA_SENT)
-                # if self._payload is not None:
-                #     self._network.send_data(self._payload)
-                #     self._fsm.trigger(Event.DATA_SENT)
-                # else:
-                #     logger.warning(f"Payload is None. data:{self._payload}")
-                #     self._fsm.state = State.IDLE
-    
+
 
             # PRINT TICKET
             if self._fsm.state == State.PRINTING_TICKET:
