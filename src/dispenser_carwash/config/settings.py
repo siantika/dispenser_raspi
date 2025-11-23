@@ -16,19 +16,24 @@ logger = setup_logger(__name__)
 
 class FilePath:
     CURRENT_PATH = Path(__file__).resolve()
-    logger.info(f"ini Current path {CURRENT_PATH}")
-    @staticmethod
-    def get_base() -> Path:
-        return FilePath.CURRENT_PATH.parents[2]
 
     @staticmethod
     def get_root() -> Path:
-        return FilePath.get_base().parents[2]
-    
+        """
+        Sesuaikan angka parents[...] dengan struktur project.
+        Misal:
+        project_root/
+          assets/
+          src/
+            dispenser_carwash/
+              hardware/
+                file_ini.py  -> parents[3] = project_root
+        """
+        return FilePath.CURRENT_PATH.parents[3]
+
     @staticmethod
     def get_sounds():
         sound_path = FilePath.get_root() / "assets" / "sounds"
-        logger.info(f"Ini sound path{sound_path}")
 
         if not sound_path.exists():
             raise FileNotFoundError(f"Sound directory not found: {sound_path}")
@@ -38,14 +43,13 @@ class FilePath:
             for f in sound_path.iterdir()
             if f.is_file() and f.suffix.lower() in (".mp3", ".wav")
         }
+
         if not sounds:
-            logger.error(f"⚠ No sound files found in: {sounds}")
-            raise FileNotFoundError(f"Sound files not found {sounds}")
-        
-        logger.info(f"🎵 Loaded {len(sounds)} sound files from {sounds}")
+            logger.error(f"⚠ No sound files found in: {sound_path}")
+            raise FileNotFoundError(f"No sound files found in: {sound_path}")
+
+        logger.info(f"🎵 Loaded {len(sounds)} sound files from {sound_path}")
         return sounds
-
-
 class Settings:
     class Hardware:
         GPIO_MODE = "BCM"

@@ -95,8 +95,8 @@ def setup_peripheral() -> Peripheral:
     try:
         sound_files = FilePath.get_sounds()
         periph.sound.load_many(sound_files)
-    except Exception as e:
-        logger.exception("Failed to intialize sounds: {e}")
+    except Exception:
+        logger.exception("Failed to intialize sounds")
 
     return periph
 
