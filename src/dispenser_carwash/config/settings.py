@@ -1,16 +1,47 @@
 import os
 from pathlib import Path
 
+from dispenser_carwash.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
 # Directory of main.py
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 # Go two levels up to project root
-PROJECT_ROOT = BASE_DIR.parent.parent.parent
+PROJECT_ROOT = BASE_DIR.parents[2]
 
 # Path to the sounds folder
 SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
 
-print("Sounds folder path:", SOUNDS_DIR)
+class FilePath:
+    CURRENT_PATH = Path(__file__).resolve()
+    @staticmethod
+    def get_base() -> Path:
+        return FilePath.CURRENT_PATH.parents[2]
+
+    @staticmethod
+    def get_root() -> Path:
+        return FilePath.get_base().parents[2]
+    
+    @staticmethod
+    def get_sounds():
+        sound_path = FilePath.get_root() / "assets" / "sounds"
+
+        if not sound_path.exists():
+            raise FileNotFoundError(f"Sound directory not found: {sound_path}")
+
+        sounds = {
+            f.stem: str(f.resolve())
+            for f in sound_path.iterdir()
+            if f.is_file() and f.suffix.lower() in (".mp3", ".wav")
+        }
+        if not sounds:
+            logger.error(f"⚠ No sound files found in: {SOUNDS_DIR}")
+            raise FileNotFoundError(f"Sound files not found {sounds}")
+        
+        logger.info(f"🎵 Loaded {len(sounds)} sound files from {SOUNDS_DIR}")
+        return sounds
 
 
 class Settings:

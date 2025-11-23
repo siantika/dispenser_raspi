@@ -8,7 +8,7 @@ from typing import Dict
 import pygame
 from gpiozero import LED, Button, Device
 
-from dispenser_carwash.config.settings import Settings
+from dispenser_carwash.config.settings import FilePath, Settings
 from dispenser_carwash.hardware.input_bool import InputGpio
 from dispenser_carwash.hardware.out_bool import OutputGpio
 from dispenser_carwash.hardware.printer import UsbEscposDriver
@@ -48,31 +48,6 @@ def remove_pidfile():
         logger.error(f"❌ Gagal hapus pidfile: {e}")
 
 
-# =====================================================
-#  Sound loader
-# =====================================================
-def get_sound() -> Dict[str, str]:
-    BASE_DIR = Path(__file__).resolve().parent
-    PROJECT_ROOT = BASE_DIR.parent.parent
-    SOUNDS_DIR = PROJECT_ROOT / "assets" / "sounds"
-    logger.info(f"base dir {BASE_DIR}")
-    logger.info(f"project root {PROJECT_ROOT}")
-
-    if not SOUNDS_DIR.exists() or not SOUNDS_DIR.is_dir():
-        logger.error(f"🚨 Sound directory not found: {SOUNDS_DIR}")
-        return {}
-
-    sounds = {
-        f.stem: str(f.resolve())
-        for f in SOUNDS_DIR.iterdir()
-        if f.is_file() and f.suffix.lower() in (".mp3", ".wav")
-    }
-
-    if not sounds:
-        logger.warning(f"⚠ No sound files found in: {SOUNDS_DIR}")
-
-    logger.info(f"🎵 Loaded {len(sounds)} sound files from {SOUNDS_DIR}")
-    return sounds
 
 
 # =====================================================
@@ -106,7 +81,6 @@ def setup_peripheral() -> Peripheral:
     gate_led = LED(pin=gate_pin)
 
     led_pin = Settings.Hardware.LED_PINS  # kalau dict, ganti sesuai
-    # misal: led_pin = Settings.Hardware.LED_PINS["status"]
     status_led = LED(pin=led_pin)
 
     periph.gate_controller = OutputGpio(gate_led)
@@ -117,8 +91,15 @@ def setup_peripheral() -> Peripheral:
 
     periph.printer = UsbEscposDriver(vid=0x28E9, pid=0x0289)
     periph.sound = PyGameSound(pygame)
-    sound_files = get_sound()
-    periph.sound.load_many(sound_files)
+    
+    try:
+        sound_files = FilePath.get_sounds()
+        periph.sound.load_many(sound_files)
+    except Exception as e:
+        logger.exception("Failed to intialize sounds: {e}")
+        # stuck
+        # send signal to LED
+        while True: ...
 
     return periph
 
