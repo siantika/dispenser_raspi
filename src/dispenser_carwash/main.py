@@ -109,11 +109,11 @@ def setup_peripheral() -> Peripheral:
     periph.indicator_status = OutputGpio(status_led)
     logger.info("GPIO init ")
 
-    # ==== PRINTER & SOUND ====
-    pygame.mixer.init()
+    # # ==== PRINTER & SOUND ====
+    # pygame.mixer.init()
 
-    periph.printer = UsbEscposDriver(vid=0x28E9, pid=0x0289)
-    periph.sound = PyGameSound(pygame)
+    # periph.printer = UsbEscposDriver(vid=0x28E9, pid=0x0289)
+    # periph.sound = PyGameSound(pygame)
 
     # sound_files = FilePath.get_sounds()
     # periph.sound.load_many(sound_files)
