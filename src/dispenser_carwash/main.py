@@ -219,6 +219,8 @@ def main():
         raise KeyboardInterrupt
 
     signal.signal(signal.SIGTERM, handle_sigterm)
+    
+    logger.info("Ini mau ini MainFSM")
 
     try:
         periph = setup_peripheral()
