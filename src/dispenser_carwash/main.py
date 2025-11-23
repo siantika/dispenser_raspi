@@ -114,14 +114,17 @@ def setup_peripheral() -> Peripheral:
 
     periph.printer = UsbEscposDriver(vid=0x28E9, pid=0x0289)
     periph.sound = PyGameSound(pygame)
+
+    sound_files = FilePath.get_sounds()
+    periph.sound.load_many(sound_files)
     
-    try:
-        sound_files = get_sound()
-        periph.sound.load_many(sound_files)
-    except Exception:
-        logger.exception("Failed to intialize sounds")
+    # try:
+    #     sound_files = get_sound()
+    #     periph.sound.load_many(sound_files)
+    # except Exception:
+    #     logger.exception("Failed to intialize sounds")
     
-    logger.info("SOund init ")
+    # logger.info("SOund init ")
 
     return periph
 
