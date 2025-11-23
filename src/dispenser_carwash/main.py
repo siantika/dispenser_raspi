@@ -85,6 +85,7 @@ def setup_peripheral() -> Peripheral:
 
     periph.gate_controller = OutputGpio(gate_led)
     periph.indicator_status = OutputGpio(status_led)
+    logger.info("GPIO init ")
 
     # ==== PRINTER & SOUND ====
     pygame.mixer.init()
@@ -97,6 +98,8 @@ def setup_peripheral() -> Peripheral:
         periph.sound.load_many(sound_files)
     except Exception:
         logger.exception("Failed to intialize sounds")
+    
+    logger.info("SOund init ")
 
     return periph
 
