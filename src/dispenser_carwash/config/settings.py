@@ -5,17 +5,18 @@ from dispenser_carwash.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Directory of main.py
-BASE_DIR = Path(__file__).resolve().parents[2]
+# # Directory of main.py
+# BASE_DIR = Path(__file__).resolve().parents[2]
 
-# Go two levels up to project root
-PROJECT_ROOT = BASE_DIR.parents[2]
+# # Go two levels up to project root
+# PROJECT_ROOT = BASE_DIR.parents[2]
 
-# Path to the sounds folder
-SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
+# # Path to the sounds folder
+# SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
 
 class FilePath:
     CURRENT_PATH = Path(__file__).resolve()
+    logger.info(f"ini Current path {CURRENT_PATH}")
     @staticmethod
     def get_base() -> Path:
         return FilePath.CURRENT_PATH.parents[2]
@@ -27,6 +28,7 @@ class FilePath:
     @staticmethod
     def get_sounds():
         sound_path = FilePath.get_root() / "assets" / "sounds"
+        logger.info(f"Ini sound path{sound_path}")
 
         if not sound_path.exists():
             raise FileNotFoundError(f"Sound directory not found: {sound_path}")
@@ -37,10 +39,10 @@ class FilePath:
             if f.is_file() and f.suffix.lower() in (".mp3", ".wav")
         }
         if not sounds:
-            logger.error(f"⚠ No sound files found in: {SOUNDS_DIR}")
+            logger.error(f"⚠ No sound files found in: {sounds}")
             raise FileNotFoundError(f"Sound files not found {sounds}")
         
-        logger.info(f"🎵 Loaded {len(sounds)} sound files from {SOUNDS_DIR}")
+        logger.info(f"🎵 Loaded {len(sounds)} sound files from {sounds}")
         return sounds
 
 

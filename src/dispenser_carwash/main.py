@@ -97,9 +97,6 @@ def setup_peripheral() -> Peripheral:
         periph.sound.load_many(sound_files)
     except Exception as e:
         logger.exception("Failed to intialize sounds: {e}")
-        # stuck
-        # send signal to LED
-        # while True: ...
 
     return periph
 
