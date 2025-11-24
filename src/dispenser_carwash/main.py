@@ -213,7 +213,7 @@ def network_process(net: NetworkManager, to_net: mp.Queue, from_net: mp.Queue, t
             logger.info(f"📡 Mengirim ke server: {payload}")
             net.send_data(payload)
             logger.info(net.get_last_response())
-            to_net.put(DeviceStatus.FINE)
+            to_status.put(DeviceStatus.FINE)
         except Exception as e:
             logger.error(f"🚨 Gagal kirim data ke server: {e}")
             from_net.put({"status": "error", "detail": str(e)})
