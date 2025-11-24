@@ -451,8 +451,10 @@ class MainProcess:
         self._service_data = self._init_data.get_service_data()
 
         if self._last_ticket_number is None or self._service_data is None:
-            logger.error("Init data gagal, tidak bisa menjalankan main loop")
-            return
+            logger.error("Init data gagal, coba lagi ...")
+            self._to_status.put(DeviceStatus.NET_ERROR)
+            time.sleep(2)
+            
 
         # Sinkronkan generator dengan nomor terakhir dari server
         self._ticket_gen = TicketGenerator(self._last_ticket_number)
