@@ -382,6 +382,10 @@ class DeviceStatusWorker:
         self._from_main = from_main
         self._hw = hw
 
+        self._current_status = DeviceStatus.FINE   # default
+        self._led_on = False
+        self._last_toggle = time.time()
+
         # Awal: matikan indikator
         self._hw.turn_off()
 
@@ -389,34 +393,58 @@ class DeviceStatusWorker:
         logger.info("💡 DeviceStatusWorker dimulai")
 
         while True:
+            # 1) Cek apakah ada pesan status baru
             try:
-                status = self._from_main.get(timeout=0.1)
+                status = self._from_main.get_nowait()
             except Exception:
-                # tidak ada pesan baru, loop lagi
-                time.sleep(0.01)
-                continue
+                status = None
 
-            # --- handle shutdown ---
-            if status == DeviceStatus.SHUTDOWN or status == "__STOP__":
-                logger.info("💡 DeviceStatusWorker menerima SHUTDOWN, keluar...")
-                self._hw.turn_off()
-                break
+            if status is not None:
+                # --- handle shutdown ---
+                if status == DeviceStatus.SHUTDOWN or status == "__STOP__":
+                    logger.info("💡 DeviceStatusWorker menerima SHUTDOWN, keluar...")
+                    self._hw.turn_off()
+                    break
 
-            # --- handle status lain ---
-            if status == DeviceStatus.NET_ERROR:
-                logger.info("💡 NET_ERROR → blink network_error")
-                self._hw.firePulse(self.PULSE_PERIODE["network_error"])
+                # update current status
+                if status != self._current_status:
+                    logger.info(f"💡 Ubah status device: {self._current_status.name} → {status.name}")
+                    self._current_status = status
+                    # reset timer blink setiap ganti status
+                    self._last_toggle = time.time()
 
-            elif status == DeviceStatus.PRINTER_ERROR:
-                logger.info("💡 PRINTER_ERROR → blink printer_error")
-                self._hw.firePulse(self.PULSE_PERIODE["printer_error"])
+            # 2) Terapkan pola lampu sesuai current_status
+            now = time.time()
 
-            elif status == DeviceStatus.FINE:
-                logger.info("💡 FINE → indikator ON")
-                self._hw.turn_on()
+            if self._current_status == DeviceStatus.FINE:
+                # Lampu nyala stabil
+                if not self._led_on:
+                    self._hw.turn_on()
+                    self._led_on = True
+
+            elif self._current_status == DeviceStatus.NET_ERROR:
+                # Blink cepat
+                period = self.PULSE_PERIODE["network_error"]
+                if now - self._last_toggle >= period:
+                    if self._led_on:
+                        self._hw.turn_off()
+                    else:
+                        self._hw.turn_on()
+                    self._led_on = not self._led_on
+                    self._last_toggle = now
+
+            elif self._current_status == DeviceStatus.PRINTER_ERROR:
+                # Blink lebih lambat
+                period = self.PULSE_PERIODE["printer_error"]
+                if now - self._last_toggle >= period:
+                    if self._led_on:
+                        self._hw.turn_off()
+                    else:
+                        self._hw.turn_on()
+                    self._led_on = not self._led_on
+                    self._last_toggle = now
 
             time.sleep(0.01)
-
 
 
 
