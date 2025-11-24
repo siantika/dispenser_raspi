@@ -14,6 +14,8 @@ from dispenser_carwash.hardware.out_bool import OutputGpio
 from dispenser_carwash.hardware.printer import UsbEscposDriver
 from dispenser_carwash.hardware.sound import PyGameSound
 from dispenser_carwash.processes.main_process import (
+    DeviceStatus,
+    DeviceStatusWorker,
     MainFSM,
     MainProcess,
     NetworkManager,
@@ -217,6 +219,13 @@ def network_process(net: NetworkManager, to_net: mp.Queue, from_net: mp.Queue):
             from_net.put({"status": "error", "detail": str(e)})
 
 
+
+def status_device_process(from_main: mp.Queue):
+    status_opt = DeviceStatus()
+    hw = OutputGpio(LED(Settings.Hardware.LED_PINS))
+    handler = DeviceStatusWorker(from_main, hw, status_opt)
+    handler.run()
+    
 # =====================================================
 #  Main
 # =====================================================
@@ -226,10 +235,12 @@ def main():
 
     to_net: mp.Queue = mp.Queue()
     from_net: mp.Queue = mp.Queue()
+    to_status: mp.Queue = mp.Queue()
     lock = mp.Lock()
 
     periph: Peripheral | None = None
     net_proc: mp.Process | None = None
+    status_dev_proc: mp.Process = None 
 
     # Handler SIGTERM (kalau nanti kamu pakai systemd)
     def handle_sigterm(signum, frame):
@@ -259,6 +270,12 @@ def main():
             daemon=False,  # biar bisa kita join di finally
         )
         net_proc.start()
+        
+     
+        status_dev_proc = mp.Process(target=status_device_process, args=(to_status,
+                                                                         ))
+        status_dev_proc.start()
+
 
         logger.info("🚗 Dispenser carwash starting...")
         main_process.run()
@@ -282,6 +299,17 @@ def main():
                     net_proc.terminate()
         except Exception as e:
             logger.error(f"❌ Error saat stop network process: {e}")
+
+        try:
+            if status_dev_proc is not None and status_dev_proc.is_alive():
+                to_status.put(DeviceStatus.SHUTDOWN)
+                status_dev_proc.join(timeout=2)
+                if status_dev_proc.is_alive():
+                    logger.warning("⚠ StatusDevice process masih hidup, terminate paksa")
+                    status_dev_proc.terminate()
+        except Exception as e:
+            logger.error(f"❌ Error saat stop status_device_process: {e}")
+
 
         # Bersihkan peripheral & GPIO
         cleanup_peripheral(periph)

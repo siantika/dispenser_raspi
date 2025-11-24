@@ -2,13 +2,13 @@ import multiprocessing as mp
 import time
 from datetime import datetime
 from enum import Enum, auto
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Protocol
 
 import requests
 
 from dispenser_carwash.config.settings import Settings
 from dispenser_carwash.hardware.input_bool import InputBool
-from dispenser_carwash.hardware.out_bool import OutputBool
+from dispenser_carwash.hardware.out_bool import OutputBool, OutputGpio
 from dispenser_carwash.hardware.printer import PrinterDriver, PrinterUnavailable
 from dispenser_carwash.hardware.sound import Sound
 from dispenser_carwash.utils.logger import setup_logger
@@ -363,6 +363,62 @@ class NetworkManager(BaseRequester):
         if self._last_response is None:
             logger.warning("⚠ Belum ada response yang tersimpan")
         return self._last_response
+
+
+class DeviceStatus(Enum):
+    NET_ERROR = "NET_ERROR"
+    PRINTER_ERROR = "PRINTER_ERROR"
+    FINE = "FINE"
+    SHUTDOWN = "SHUTDOWN"   # sentinel buat matiin process
+
+
+class DeviceStatusWorker:
+    PULSE_PERIODE = {
+        "network_error": 0.3,
+        "printer_error": 0.5,
+    }
+
+    def __init__(self, from_main: mp.Queue, hw: OutputGpio):
+        self._from_main = from_main
+        self._hw = hw
+
+        # Awal: matikan indikator
+        self._hw.turn_off()
+
+    def run(self):
+        logger.info("💡 DeviceStatusWorker dimulai")
+
+        while True:
+            try:
+                status = self._from_main.get(timeout=0.1)
+            except Exception:
+                # tidak ada pesan baru, loop lagi
+                time.sleep(0.01)
+                continue
+
+            # --- handle shutdown ---
+            if status == DeviceStatus.SHUTDOWN or status == "__STOP__":
+                logger.info("💡 DeviceStatusWorker menerima SHUTDOWN, keluar...")
+                self._hw.turn_off()
+                break
+
+            # --- handle status lain ---
+            if status == DeviceStatus.NET_ERROR:
+                logger.info("💡 NET_ERROR → blink network_error")
+                self._hw.firePulse(self.PULSE_PERIODE["network_error"])
+
+            elif status == DeviceStatus.PRINTER_ERROR:
+                logger.info("💡 PRINTER_ERROR → blink printer_error")
+                self._hw.firePulse(self.PULSE_PERIODE["printer_error"])
+
+            elif status == DeviceStatus.FINE:
+                logger.info("💡 FINE → indikator ON")
+                self._hw.turn_on()
+
+            time.sleep(0.01)
+
+
+
 
 class Utils:
     @staticmethod    
