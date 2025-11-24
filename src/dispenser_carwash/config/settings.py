@@ -23,8 +23,8 @@ class Settings:
             "service_3": 19,
             "service_4": 26,
         }
-        GATE_CONTROLLER_PIN = 23 
-        LED_PINS = 24
+        GATE_CONTROLLER_PIN = 24 
+        LED_PINS = 23
 
     class Server:
         SEND_URL = "http://192.168.100.29:8000/api/tickets"

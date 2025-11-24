@@ -450,13 +450,17 @@ class MainProcess:
         self._last_ticket_number = self._init_data.get_last_ticket_number()
         self._service_data = self._init_data.get_service_data()
 
-        if self._last_ticket_number is None or self._service_data is None:
-            logger.error("Init data gagal, coba lagi ...")
+        while self._last_ticket_number is None or self._service_data is None:
+            logger.error("Init data gagal, coba lagi dalam 5 detik...")
             self._to_status.put(DeviceStatus.NET_ERROR)
-            time.sleep(2)
-            
+            time.sleep(5)
 
-        # Sinkronkan generator dengan nomor terakhir dari server
+            self._init_data = InitData(Settings.Server.INIT_DATA_URL)
+            self._last_ticket_number = self._init_data.get_last_ticket_number()
+            self._service_data = self._init_data.get_service_data()
+
+        # jika data init berhasil, sinkronkan generator dengan nomor terakhir dari server
+        self._to_status.put(DeviceStatus.FINE)
         self._ticket_gen = TicketGenerator(self._last_ticket_number)
 
         while True:
@@ -542,7 +546,7 @@ class MainProcess:
                 ok = PrintTicket.print_ticket(self._periph.printer, self._payload)
                 if not ok:
                     # misal: set indikator error, atau kirim info ke server
-                    self._to_net.put(DeviceStatus.PRINTER_ERROR)
+                    self._to_status.put(DeviceStatus.PRINTER_ERROR)
                     # tapi JANGAN raise Exception lagi
                     logger.warning("⚠ Tiket tidak tercetak karena printer tidak tersedia")
                     #anggap DONE dulu hanya logger error kalau printer tidak mau
