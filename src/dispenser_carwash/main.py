@@ -222,7 +222,7 @@ def network_process(net: NetworkManager, to_net: mp.Queue, from_net: mp.Queue):
 
 
 def status_device_process(from_main: mp.Queue, hw):
-    handler = DeviceStatusWorker(from_main, hw, DeviceStatus)
+    handler = DeviceStatusWorker(from_main, hw)
     handler.run()
     
 # =====================================================
