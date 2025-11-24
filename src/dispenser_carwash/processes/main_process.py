@@ -374,8 +374,8 @@ class DeviceStatus(Enum):
 
 class DeviceStatusWorker:
     PULSE_PERIODE = {
-        "network_error": 0.3,
-        "printer_error": 0.5,
+        "network_error": 0.2,
+        "printer_error": 0.8,
     }
 
     def __init__(self, from_main: mp.Queue, hw: OutputGpio):
