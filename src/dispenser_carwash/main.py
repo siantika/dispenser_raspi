@@ -29,25 +29,25 @@ PID_FILE = "/tmp/dispenser_carwash.pid"
 
 
 # =====================================================
-#  Single instance guard (biar gak jalan dobel)
+#  Single instance guard (Prevent program execute double)
 # =====================================================
 def ensure_single_instance():
     if os.path.exists(PID_FILE):
-        logger.error("⚠ Program sudah berjalan (pidfile ada). Keluar.")
+        logger.error("⚠ Program already run, exiting ...")
         sys.exit(1)
     with open(PID_FILE, "w") as f:
         f.write(str(os.getpid()))
-    logger.info(f"📌 PID file dibuat: {PID_FILE}")
+    logger.info(f"PID file is created: {PID_FILE}")
 
 
 def remove_pidfile():
     try:
         os.remove(PID_FILE)
-        logger.info("🧹 PID file dihapus")
+        logger.info("PID file deleted")
     except FileNotFoundError:
         pass
     except Exception as e:
-        logger.error(f"❌ Gagal hapus pidfile: {e}")
+        logger.error(f"Failed to delete pidfile: {e}")
 
 
 # =====================================================
@@ -81,17 +81,13 @@ def get_sound() -> Dict[str, str]:
 #  Setup peripheral
 # =====================================================
 def setup_peripheral() -> Peripheral:
-    """
-    Inisialisasi semua perangkat keras.
-    Sesuaikan pin / device dengan hardware aslinya.
-    """
     periph = Peripheral()
 
     # ==== INPUT ====
     loop_pin = Settings.Hardware.LOOP_SENSOR_PIN
     loop_button = Button(pin=loop_pin)
 
-    button_pins = Settings.Hardware.BUTTON_PINS  # diasumsikan dict
+    button_pins = Settings.Hardware.BUTTON_PINS 
     service_1_btn = Button(pin=button_pins.get("service_1"))
     service_2_btn = Button(pin=button_pins.get("service_2"))
     service_3_btn = Button(pin=button_pins.get("service_3"))
@@ -107,7 +103,7 @@ def setup_peripheral() -> Peripheral:
     gate_pin = Settings.Hardware.GATE_CONTROLLER_PIN
     gate_led = LED(pin=gate_pin)
 
-    led_pin = Settings.Hardware.LED_PINS  # kalau dict, ganti sesuai
+    led_pin = Settings.Hardware.LED_PINS  
     status_led = LED(pin=led_pin)
 
     periph.gate_controller = OutputGpio(gate_led)
@@ -116,7 +112,7 @@ def setup_peripheral() -> Peripheral:
     # ==== PRINTER & SOUND ====
     pygame.mixer.init()
 
-    periph.printer = UsbEscposDriver(vid=0x28E9, pid=0x0289)
+    periph.printer = UsbEscposDriver(Settings.VID, Settings.PID)
     periph.sound = PyGameSound(pygame)
     sound_files = get_sound()
     periph.sound.load_many(sound_files)
@@ -132,7 +128,7 @@ def cleanup_peripheral(periph: Peripheral | None):
     if periph is None:
         return
 
-    # Tutup input/output wrapper kalau punya .close()
+    # Close all wrapper if those have close() method
     for attr_name in [
         "input_loop",
         "service_1",
@@ -147,11 +143,10 @@ def cleanup_peripheral(periph: Peripheral | None):
             continue
 
         try:
-            # Kalau wrapper punya .close()
             if hasattr(dev, "close") and callable(getattr(dev, "close")):
                 dev.close()
         except Exception as e:
-            logger.error(f"❌ Gagal close {attr_name}: {e}")
+            logger.error(f"Failed to close {attr_name}: {e}")
 
     # Printer
     try:
@@ -159,7 +154,7 @@ def cleanup_peripheral(periph: Peripheral | None):
         if printer and hasattr(printer, "close"):
             printer.close()
     except Exception as e:
-        logger.error(f"❌ Gagal close printer: {e}")
+        logger.error(f"Failed to close printer: {e}")
 
     # Sound / pygame
     try:
@@ -167,21 +162,21 @@ def cleanup_peripheral(periph: Peripheral | None):
         if snd and hasattr(snd, "stop"):
             snd.stop()
     except Exception as e:
-        logger.error(f"❌ Gagal stop sound: {e}")
+        logger.error(f"Falied to stop sound: {e}")
 
     try:
         if pygame.mixer.get_init():
             pygame.mixer.quit()
-            logger.info("🔇 pygame.mixer.quit() dipanggil")
+            logger.info("🔇 pygame.mixer.quit() called")
     except Exception as e:
-        logger.error(f"❌ Gagal quit mixer: {e}")
+        logger.error(f"Failed to quit mixer: {e}")
 
-    # Tutup semua pin gpiozero
+    # Close gpiozero
     try:
         Device.pin_factory.close()
-        logger.info("📴 Device.pin_factory.close() dipanggil (GPIO released)")
+        logger.info("📴 Device.pin_factory.close() called (GPIO released)")
     except Exception as e:
-        logger.error(f"❌ Gagal close pin_factory: {e}")
+        logger.error(f"Failed to close pin_factory: {e}")
 
 
 # =====================================================
@@ -198,24 +193,24 @@ def network_process(net: NetworkManager, to_net: mp.Queue, from_net: mp.Queue, t
             break
 
         if not isinstance(payload, dict):
-            logger.error(f"❌ Payload bukan dict: {payload}")
+            logger.error(f"❌ Payload is not a dict: {payload}")
             continue
 
         missing_keys = REQUIRED_KEYS - payload.keys()
         if missing_keys:
-            logger.error(f"⚠ Payload kurang key: {missing_keys} -> {payload}")
+            logger.error(f"⚠ Payload misses key: {missing_keys} -> {payload}")
             continue
 
         if any(v in (None, "") for v in payload.values()):
-            logger.warning(f"⚠ Ada data None/kosong: {payload}")
+            logger.warning(f"⚠ There is None/empty: {payload}")
 
         try:
-            logger.info(f"📡 Mengirim ke server: {payload}")
+            logger.info(f"📡 Sends to server: {payload}")
             net.send_data(payload)
             logger.info(net.get_last_response())
             to_status.put(DeviceStatus.FINE)
         except Exception as e:
-            logger.error(f"🚨 Gagal kirim data ke server: {e}")
+            logger.error(f"🚨 Failed to send data to server: {e}")
             from_net.put({"status": "error", "detail": str(e)})
             to_status.put(DeviceStatus.NET_ERROR)
 
@@ -229,7 +224,6 @@ def status_device_process(from_main: mp.Queue, hw):
 #  Main
 # =====================================================
 def main():
-    # Biar gak jalan dobel
     ensure_single_instance()
 
     to_net: mp.Queue = mp.Queue()
@@ -241,10 +235,10 @@ def main():
     net_proc: mp.Process | None = None
     status_dev_proc: mp.Process = None 
 
-    # Handler SIGTERM (kalau nanti kamu pakai systemd)
+    # Handler SIGTERM (using systemd)
     def handle_sigterm(signum, frame):
         logger.info("⚠ SIGTERM diterima, keluar dengan rapi...")
-        # biar finally tetap jalan, kita raise KeyboardInterrupt saja
+        # Keep 'finally' stays work, we raise KeyboardInterrupt 
         raise KeyboardInterrupt
 
     signal.signal(signal.SIGTERM, handle_sigterm)
@@ -267,7 +261,7 @@ def main():
         net_proc = mp.Process(
             target=network_process,
             args=(network, to_net, from_net, to_status,),
-            daemon=False,  # biar bisa kita join di finally
+            daemon=False,  # Join in "finally"
         )
         net_proc.start()
         
@@ -288,7 +282,7 @@ def main():
         logger.exception(f"❗ Unhandled error in main: {e}")
 
     finally:
-        logger.info("🧹 FINALIZE: cleanup mulai...")
+        logger.info("🧹 FINALIZE: cleanup started...")
 
         # Hentikan network process
         try:
@@ -296,29 +290,25 @@ def main():
                 to_net.put("__STOP__")
                 net_proc.join(timeout=2)
                 if net_proc.is_alive():
-                    logger.warning("⚠ Network process masih hidup, terminate paksa")
+                    logger.warning("⚠ Network process still alive, force to terminate")
                     net_proc.terminate()
         except Exception as e:
-            logger.error(f"❌ Error saat stop network process: {e}")
+            logger.error(f"❌ Error when stopping network process: {e}")
 
         try:
             if status_dev_proc is not None and status_dev_proc.is_alive():
                 to_status.put(DeviceStatus.SHUTDOWN)
                 status_dev_proc.join(timeout=2)
                 if status_dev_proc.is_alive():
-                    logger.warning("⚠ StatusDevice process masih hidup, terminate paksa")
+                    logger.warning("⚠ StatusDevice process still alive, force to terminate")
                     status_dev_proc.terminate()
         except Exception as e:
-            logger.error(f"❌ Error saat stop status_device_process: {e}")
+            logger.error(f"❌ Error while status_device_process: {e}")
 
-
-        # Bersihkan peripheral & GPIO
         cleanup_peripheral(periph)
-
-        # Hapus pidfile
         remove_pidfile()
 
-        logger.info("✅ Cleanup selesai, exit.")
+        logger.info("✅ Cleanup done, exit.")
 
 
 if __name__ == "__main__":

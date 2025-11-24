@@ -25,6 +25,10 @@ class Settings:
     }
     INTERVAL_RECONNECT = 5
     TIMEOUT_PUT_QUEUE = 5
+    """ printer properties"""
+    VID=0x28E9
+    PID=0x0289
+    """-------"""
     class Hardware:
         GPIO_MODE = "BCM"
         LOOP_SENSOR_PIN = 5
