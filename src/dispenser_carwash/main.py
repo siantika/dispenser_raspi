@@ -187,7 +187,7 @@ def cleanup_peripheral(periph: Peripheral | None):
 # =====================================================
 #  Network process
 # =====================================================
-def network_process(net: NetworkManager, to_net: mp.Queue, from_net: mp.Queue):
+def network_process(net: NetworkManager, to_net: mp.Queue, from_net: mp.Queue, to_status: mp.Queue):
     REQUIRED_KEYS = {"ticket_number", "time_in", "service_name", "price"}
 
     while True:
@@ -217,7 +217,7 @@ def network_process(net: NetworkManager, to_net: mp.Queue, from_net: mp.Queue):
         except Exception as e:
             logger.error(f"🚨 Gagal kirim data ke server: {e}")
             from_net.put({"status": "error", "detail": str(e)})
-            to_net.put(DeviceStatus.NET_ERROR)
+            to_status.put(DeviceStatus.NET_ERROR)
 
 
 
