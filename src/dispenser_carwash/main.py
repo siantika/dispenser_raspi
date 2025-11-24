@@ -108,7 +108,6 @@ def setup_peripheral() -> Peripheral:
     gate_led = LED(pin=gate_pin)
 
     led_pin = Settings.Hardware.LED_PINS  # kalau dict, ganti sesuai
-    # misal: led_pin = Settings.Hardware.LED_PINS["status"]
     status_led = LED(pin=led_pin)
 
     periph.gate_controller = OutputGpio(gate_led)
@@ -214,15 +213,16 @@ def network_process(net: NetworkManager, to_net: mp.Queue, from_net: mp.Queue):
             logger.info(f"📡 Mengirim ke server: {payload}")
             net.send_data(payload)
             logger.info(net.get_last_response())
+            to_net.put(DeviceStatus.FINE)
         except Exception as e:
             logger.error(f"🚨 Gagal kirim data ke server: {e}")
             from_net.put({"status": "error", "detail": str(e)})
+            to_net.put(DeviceStatus.NET_ERROR)
 
 
 
-def status_device_process(from_main: mp.Queue):
+def status_device_process(from_main: mp.Queue, hw):
     status_opt = DeviceStatus()
-    hw = OutputGpio(LED(Settings.Hardware.LED_PINS))
     handler = DeviceStatusWorker(from_main, hw, status_opt)
     handler.run()
     
@@ -260,19 +260,21 @@ def main():
             lock=lock,
             periph=periph,
             fsm=fsm,
+            to_status = to_status,
         )
 
         network = NetworkManager(Settings.Server.SEND_URL)
 
         net_proc = mp.Process(
             target=network_process,
-            args=(network, to_net, from_net),
+            args=(network, to_net, from_net, to_status,),
             daemon=False,  # biar bisa kita join di finally
         )
         net_proc.start()
         
      
         status_dev_proc = mp.Process(target=status_device_process, args=(to_status,
+                                                                         periph.indicator_status
                                                                          ))
         status_dev_proc.start()
 

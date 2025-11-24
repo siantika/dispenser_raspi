@@ -429,9 +429,10 @@ class Utils:
 """ Process """        
 class MainProcess:
     def __init__(self, to_net: mp.Queue, from_net: mp.Queue, lock: mp.Lock,
-                 periph: Peripheral, fsm: "MainFSM"):
+                 periph: Peripheral, fsm: "MainFSM", to_status:mp.Queue):
         self._to_net = to_net
         self._from_net = from_net
+        self._to_status = to_status
         self._service_data = None
         self._last_ticket_number = None
         self._selected_service = None
@@ -442,6 +443,7 @@ class MainProcess:
         self._ticket_gen = None 
         self._init_data = InitData(Settings.Server.INIT_DATA_URL)
         self._network = NetworkManager(Settings.Server.SEND_URL)
+        self._to_status.put(DeviceStatus.FINE)
 
     def run(self):
         # Ambil data awal dari server
@@ -531,12 +533,6 @@ class MainProcess:
                 with self._lock:
                     self._to_net.put(self._payload, timeout=5)
                 self._fsm.trigger(Event.DATA_SENT)
-                # if self._payload is not None:
-                #     self._network.send_data(self._payload)
-                #     self._fsm.trigger(Event.DATA_SENT)
-                # else:
-                #     logger.warning(f"Payload is None. data:{self._payload}")
-                #     self._fsm.state = State.IDLE
     
 
             # PRINT TICKET
@@ -544,9 +540,14 @@ class MainProcess:
                 ok = PrintTicket.print_ticket(self._periph.printer, self._payload)
                 if not ok:
                     # misal: set indikator error, atau kirim info ke server
+                    self._to_net.put(DeviceStatus.PRINTER_ERROR)
                     # tapi JANGAN raise Exception lagi
                     logger.warning("⚠ Tiket tidak tercetak karena printer tidak tersedia")
-                self._fsm.trigger(Event.PRINT_DONE)
+                    #anggap DONE dulu hanya logger error kalau printer tidak mau
+                    self._fsm.trigger(Event.PRINT_DONE)
+                else:
+                    self._to_status.put(DeviceStatus.FINE)
+                    self._fsm.trigger(Event.PRINT_DONE)
                 
             # BUKA GATE
             if self._fsm.state == State.GATE_OPEN:
