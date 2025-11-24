@@ -1,6 +1,10 @@
 import os
 from pathlib import Path
 
+from dispenser_carwash.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
 # Directory of main.py
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -10,10 +14,17 @@ PROJECT_ROOT = BASE_DIR.parent.parent.parent
 # Path to the sounds folder
 SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
 
-print("Sounds folder path:", SOUNDS_DIR)
+logger.info("Sounds folder path:", SOUNDS_DIR)
+
 
 
 class Settings:
+    PULSE_PERIODE = {
+        "network_error": 0.2,
+        "printer_error": 0.8,
+    }
+    INTERVAL_RECONNECT = 5
+    TIMEOUT_PUT_QUEUE = 5
     class Hardware:
         GPIO_MODE = "BCM"
         LOOP_SENSOR_PIN = 5

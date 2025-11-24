@@ -2,7 +2,7 @@ import multiprocessing as mp
 import time
 from datetime import datetime
 from enum import Enum, auto
-from typing import Any, Dict, Optional, Protocol
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -15,12 +15,8 @@ from dispenser_carwash.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-""" Uji sistem crash : eg printer dicabut atau koneksi mati.
-Untuk sekarang coba satu thread (net work di thread ini).
-button juga dicek saat noise
-"""
-
 class Peripheral:
+    """ It represents hardware that used in this system"""
     input_loop: InputBool
     service_1: InputBool
     service_2: InputBool
@@ -55,7 +51,12 @@ class Event(Enum):
 
 class MainFSM:
     def __init__(self):
+        
         self.state = State.IDLE
+        """ Format:
+        (current state, trigger event): future state after trigger-event is called
+        
+        """
         self.transitions = {
             (State.IDLE, Event.ARRIVED): State.GREETING,
             (State.GREETING, Event.GREETING_DONE): State.SELECTING_SERVICE,
@@ -73,7 +74,7 @@ class MainFSM:
     def trigger(self, event: Event)-> None:
         key = (self.state, event)
         if  key not in self.transitions:
-            logger.warning(f"⚠ Transisi tidak valid: {self.state.name} + {event.name}")
+            logger.warning(f"⚠ Not a valid transition: {self.state.name} + {event.name}")
             return
             
         next_state = self.transitions[key]
@@ -87,7 +88,7 @@ class TicketGenerator:
 
     def _checksum_ean_13(self, number: str) -> int:
         """
-        Hitung checksum EAN-13 untuk 12 digit input.
+        calculate an EAN-13-checksum for 12 digits input.
         """
         if len(number) != 12 or not number.isdigit():
             raise ValueError("EAN-13 checksum calculation requires exactly 12 digits")
@@ -100,17 +101,18 @@ class TicketGenerator:
 
     def create_ean_ticket(self, service_id: int) -> str:
         """
-        Generate full 13-digit EAN code (string).
+        Generate a full 13-digit EAN code (string).
         """
         self._last_ticket_number += 1
         
+        """ this can be customized by programer"""
         prefix = "899"  # GS1 Indonesia
-        service_id_str = f"{service_id:02d}"  # Selalu 2 digit
-        sequential = f"{self._last_ticket_number:07d}"  # 7 digit incremental
+        service_id_str = f"{service_id:02d}"  # alwasy 2 digits
+        sequential = f"{self._last_ticket_number:07d}"  # 7 digits incremental
 
         raw_number = f"{prefix}{service_id_str}{sequential}"
 
-        # Pastikan tetap 12 digit sebelum checksum
+        
         if len(raw_number) != 12:
             raise ValueError(f"EAN base must be 12 digits, got {len(raw_number)} → {raw_number}")
 
@@ -123,6 +125,7 @@ class PrintTicket:
     @staticmethod
     def _validate_data(data: dict) -> None:
         required = {"ticket_number", "time_in", "service_name", "price"}
+        # key set difference
         missing = required - data.keys()
         if missing:
             raise ValueError(f"Missing keys: {missing}")
@@ -130,9 +133,10 @@ class PrintTicket:
     @staticmethod
     def print_ticket(driver: PrinterDriver, data: Dict[str, Any]) -> bool:
         """
-        Struktur data yang benar:
+        returns: bool -> True means printer is working, False means printer is not working.
+        JSON format:
         data = {
-            "ticket_number": "1234567890123",   # EAN13 (13 digit)
+            "ticket_number": "1234567890123",   # EAN13 (13 digits)
             "time_in": "2025-11-20 15:45:01",
             "service_name": "Complete",
             "price": "25000"
@@ -140,8 +144,6 @@ class PrintTicket:
         """
         
         try:
-
-            # 🔍 Validasi data
             PrintTicket._validate_data(data)
 
             # ============================
@@ -198,22 +200,16 @@ class PrintTicket:
             return True
         
         except PrinterUnavailable as e:
-            # Di sini program TIDAK crash, hanya log error.
-            logger.error(f"❌ Gagal print tiket (printer tidak siap): {e}")
-            # Di sini kamu bisa:
-            # - nyalakan LED error
-            # - kirim status ke network
-            # - simpan state "tiket belum tercetak"
-            # Tapi jangan raise lagi kalau memang ingin program tetap jalan.
+            logger.exception(f"Failed to print. Please check the printer! {e}")
             return False
         
         except Exception as e:
-            logger.error(f"error: {e}")
+            logger.exception(f"Unexpected error from printer: {e}")
             return False
 
 class BaseRequester:
     """
-    Kelas dasar untuk handle:
+    Base class for handle:
     - retry
     - delay
     - logging
@@ -234,9 +230,9 @@ class BaseRequester:
     ) -> Optional[Dict[str, Any]]:
         """
         method: "GET" / "POST" / dst
-        label : nama operasi untuk log (misal: 'init data', 'send data')
+        label : operation name for logging (ex: 'init data', 'send data')
         url   : endpoint
-        kwargs: diteruskan ke requests.request (json=..., data=..., params=..., dll)
+        kwargs: methods passed to requests.request (json=..., data=..., params=..., etc)
         """
         for attempt in range(1, self._retries + 1):
             try:
@@ -254,25 +250,25 @@ class BaseRequester:
 
                 data = response.json()
                 if not isinstance(data, dict):
-                    raise ValueError("Response JSON harus berupa dict")
+                    raise ValueError("JSON Response should be dict")
 
-                logger.info(f"✔ {label} berhasil")
+                logger.info(f"✔ {label} Success!")
                 return data
 
             except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
-                logger.warning(f"⚠ {label} - Koneksi gagal: {e}")
+                logger.warning(f"⚠ {label} - failed connections: {e}")
             except requests.exceptions.HTTPError as e:
                 logger.warning(f"🚨 {label} - HTTP Error: {e}")
             except (requests.exceptions.JSONDecodeError, ValueError) as e:
-                logger.warning(f"⚠ {label} - Response tidak valid: {e}")
+                logger.warning(f"⚠ {label} - Not valid response: {e}")
             except Exception as e:
-                logger.warning(f"❗ {label} - Error tak terduga: {e}")
+                logger.exception(f"❗ {label} - Unexpected error: {e}")
 
             if attempt < self._retries:
-                logger.info(f"⏳ {label} - Retry dalam {self._delay} detik...")
+                logger.info(f"⏳ {label} - Retry in {self._delay} secs...")
                 time.sleep(self._delay)
 
-        logger.error(f"❌ {label} - Gagal setelah semua percobaan")
+        logger.error(f"{label} - Failed on all attemps")
         return None
 
 
@@ -284,7 +280,7 @@ class InitData(BaseRequester):
         delay: int = 2,
     ):
         """
-        Init data dari endpoint:
+        Init data from endpoint:
         - last_ticket_number
         - service_data
         """
@@ -293,7 +289,7 @@ class InitData(BaseRequester):
         self._url = url
         self._data: Optional[Dict[str, Any]] = None
 
-        # langsung fetch saat inisialisasi
+        # immidiately invoke
         self._fetch_init_data()
 
     def _fetch_init_data(self) -> None:
@@ -302,28 +298,28 @@ class InitData(BaseRequester):
             method="GET",
             url=self._url,
         )
-        self._data = data  # bisa None kalau gagal
+        self._data = data 
 
     def get_last_ticket_number(self) -> Optional[int]:
         if self._data and "last_ticket_number" in self._data:
             return self._data["last_ticket_number"]
-        logger.warning("⚠ last_ticket_number tidak tersedia")
+        logger.warning("⚠ last_ticket_number are not provided")
         return None
 
     def get_service_data(self) -> Optional[list]:
         if not self._data:
-            logger.warning("⚠ Belum ada init data (request gagal)")
+            logger.warning("⚠ no init data yes, request failed)")
             return None
 
         data = self._data.get("service_data")
         if not isinstance(data, list):
-            logger.warning("⚠ service_data tidak valid (harus list)")
+            logger.warning("⚠ service_data not valid (must be list)")
             return None
 
-        # Optional: cek service_id valid
+        # Optional: check service_id 
         for item in data:
             if "id" not in item:
-                logger.warning(f"⚠ service_data tanpa id: {item}")
+                logger.warning(f"⚠ service_data without 'id': {item}")
 
         return data
 
@@ -336,7 +332,7 @@ class NetworkManager(BaseRequester):
         delay: int = 2,
     ):
         """
-        Kirim data ke server dengan POST + retry.
+        Sends data using POST + retry.
         """
         super().__init__(retries=retries, delay=delay)
 
@@ -345,55 +341,50 @@ class NetworkManager(BaseRequester):
 
     def send_data(self, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
-        Kirim payload ke server.
+        Sedns payload to server.
         Return:
             dict -> response JSON
-            None -> kalau gagal
+            None -> if failed
         """
         data = self._request_json(
             label="Kirim data ke server",
             method="POST",
             url=self._url,
-            json=payload,  # ganti ke data=payload kalau server pakai form-url-encoded
+            json=payload,  
         )
         self._last_response = data
         return data
 
     def get_last_response(self) -> Optional[Dict[str, Any]]:
         if self._last_response is None:
-            logger.warning("⚠ Belum ada response yang tersimpan")
+            logger.warning("There are not response stored")
         return self._last_response
 
 
 class DeviceStatus(Enum):
+    """ for status operation """
     NET_ERROR = "NET_ERROR"
     PRINTER_ERROR = "PRINTER_ERROR"
     FINE = "FINE"
-    SHUTDOWN = "SHUTDOWN"   # sentinel buat matiin process
+    SHUTDOWN = "SHUTDOWN"   
 
 
 class DeviceStatusWorker:
-    PULSE_PERIODE = {
-        "network_error": 0.2,
-        "printer_error": 0.8,
-    }
-
     def __init__(self, from_main: mp.Queue, hw: OutputGpio):
         self._from_main = from_main
         self._hw = hw
 
-        self._current_status = DeviceStatus.FINE   # default
+        self._current_status = DeviceStatus.FINE   
         self._led_on = False
         self._last_toggle = time.time()
 
-        # Awal: matikan indikator
+        # Init condition
         self._hw.turn_off()
 
     def run(self):
-        logger.info("💡 DeviceStatusWorker dimulai")
+        logger.info("DeviceStatusWorker starts")
 
         while True:
-            # 1) Cek apakah ada pesan status baru
             try:
                 status = self._from_main.get_nowait()
             except Exception:
@@ -402,29 +393,29 @@ class DeviceStatusWorker:
             if status is not None:
                 # --- handle shutdown ---
                 if status == DeviceStatus.SHUTDOWN or status == "__STOP__":
-                    logger.info("💡 DeviceStatusWorker menerima SHUTDOWN, keluar...")
+                    logger.info("💡 DeviceStatusWorker got SHUTDOWN, exit...")
                     self._hw.turn_off()
                     break
 
                 # update current status
                 if status != self._current_status:
-                    logger.info(f"💡 Ubah status device: {self._current_status.name} → {status.name}")
+                    logger.info(f"💡 Change device status: {self._current_status.name} → {status.name}")
                     self._current_status = status
-                    # reset timer blink setiap ganti status
+                    # reset blink timer for every status change
                     self._last_toggle = time.time()
-
-            # 2) Terapkan pola lampu sesuai current_status
+                    
             now = time.time()
 
             if self._current_status == DeviceStatus.FINE:
-                # Lampu nyala stabil
+                # Solid ON 
                 if not self._led_on:
                     self._hw.turn_on()
                     self._led_on = True
 
             elif self._current_status == DeviceStatus.NET_ERROR:
-                # Blink cepat
-                period = self.PULSE_PERIODE["network_error"]
+                # Quickly blink
+                self._hw.firePulse()
+                period = Settings.PULSE_PERIODE["network_error"]
                 if now - self._last_toggle >= period:
                     if self._led_on:
                         self._hw.turn_off()
@@ -434,8 +425,8 @@ class DeviceStatusWorker:
                     self._last_toggle = now
 
             elif self._current_status == DeviceStatus.PRINTER_ERROR:
-                # Blink lebih lambat
-                period = self.PULSE_PERIODE["printer_error"]
+                # Slow blink
+                period = Settings.PULSE_PERIODE["printer_error"]
                 if now - self._last_toggle >= period:
                     if self._led_on:
                         self._hw.turn_off()
@@ -450,7 +441,8 @@ class DeviceStatusWorker:
 
 class Utils:
     @staticmethod    
-    def get_service(data, service_id):
+    def get_service(data:List[Dict[str:Any]], service_id:int) -> Dict[str:Any] :
+        """ Since service data is list of dict"""
         return next((item for item in data if item["id"] == service_id), None)
 
 
@@ -474,46 +466,43 @@ class MainProcess:
         self._to_status.put(DeviceStatus.FINE)
 
     def run(self):
-        # Ambil data awal dari server
+        #Get data from server
         self._last_ticket_number = self._init_data.get_last_ticket_number()
         self._service_data = self._init_data.get_service_data()
 
         while self._last_ticket_number is None or self._service_data is None:
-            logger.error("Init data gagal, coba lagi dalam 5 detik...")
+            """ reconnect until works or it loop here forever """
+            logger.error("Failed to get Init-data, trying in next 5 secs...")
             self._to_status.put(DeviceStatus.NET_ERROR)
-            time.sleep(5)
-
+            time.sleep(Settings.INTERVAL_RECONNECT)
+            # Reconnect
             self._init_data = InitData(Settings.Server.INIT_DATA_URL)
             self._last_ticket_number = self._init_data.get_last_ticket_number()
             self._service_data = self._init_data.get_service_data()
 
-        # jika data init berhasil, sinkronkan generator dengan nomor terakhir dari server
+        # If success to connect and get init-data, do this
         self._to_status.put(DeviceStatus.FINE)
         self._ticket_gen = TicketGenerator(self._last_ticket_number)
 
         while True:
-            # Baca loop detector sekali per iterasi
             loop_active = self._periph.input_loop.read_input()
 
-            # RESET kontekstual saat IDLE
             if self._fsm.state == State.IDLE:
                 self._periph.sound.stop()
                 self._periph.gate_controller.turn_off()
                 self._selected_service = None
                 self._payload = {}
 
-            # Deteksi kedatangan hanya dari IDLE
             if self._fsm.state == State.IDLE and loop_active:
                 self._fsm.trigger(Event.ARRIVED)
 
-            # GREETING
             if self._fsm.state == State.GREETING:
                 self._periph.sound.play("welcome")
                 self._fsm.trigger(Event.GREETING_DONE)
 
-            # PEMILIHAN SERVICE
+            # Service Selection
             if self._fsm.state == State.SELECTING_SERVICE and self._selected_service is None:
-                # Jika mobil keluar dan tidak jadi pilih servis
+                # Vehicle leave without selecting service 
                 if not loop_active:
                     self._fsm.trigger(Event.LEAVE_WITHOUT_SELECTING)
                 else:
@@ -534,14 +523,11 @@ class MainProcess:
                         self._periph.sound.stop()
                         self._periph.sound.play("service_cuci_motor")
 
-            # Hanya sekali trigger SERVICE_SELECTED (saat masih di SELECTING_SERVICE)
+            # Make sure Selecting-Service sound are played until finish before to next sound play
             if self._selected_service is not None and self._fsm.state == State.SELECTING_SERVICE:
                 if not self._periph.sound.is_busy():
                     self._periph.sound.stop()
                     self._fsm.trigger(Event.SERVICE_SELECTED)
-                else:
-                    logger.info(f"suara sedang: {self._periph.sound.is_busy()}")
-                
                 
             # GENERATE TICKET
             if self._fsm.state == State.GENERATING_TICKET:
@@ -561,11 +547,10 @@ class MainProcess:
 
                 self._fsm.trigger(Event.TICKET_GENERATED)
 
-            # KIRIM DATA KE SERVER
+           
             if self._fsm.state == State.SENDING_DATA:
-                """ Bisa pakai multiprocessing tapi sekarang single thread dulu"""
                 with self._lock:
-                    self._to_net.put(self._payload, timeout=5)
+                    self._to_net.put(self._payload, timeout=Settings.TIMEOUT_PUT_QUEUE)
                 self._fsm.trigger(Event.DATA_SENT)
     
 
@@ -573,17 +558,15 @@ class MainProcess:
             if self._fsm.state == State.PRINTING_TICKET:
                 ok = PrintTicket.print_ticket(self._periph.printer, self._payload)
                 if not ok:
-                    # misal: set indikator error, atau kirim info ke server
                     self._to_status.put(DeviceStatus.PRINTER_ERROR)
-                    # tapi JANGAN raise Exception lagi
-                    logger.warning("⚠ Tiket tidak tercetak karena printer tidak tersedia")
-                    #anggap DONE dulu hanya logger error kalau printer tidak mau
+                    logger.warning("⚠ Ticket is not printed due to printer error. Please check the printer! ")
+                    # event it failed, we assume the print session DOne and continue to next state
                     self._fsm.trigger(Event.PRINT_DONE)
                 else:
                     self._to_status.put(DeviceStatus.FINE)
                     self._fsm.trigger(Event.PRINT_DONE)
                 
-            # BUKA GATE
+            # OPEN GATE
             if self._fsm.state == State.GATE_OPEN:
                 self._periph.gate_controller.firePulse(0.5)
                 self._periph.sound.stop()
@@ -595,5 +578,5 @@ class MainProcess:
                     self._fsm.trigger(Event.VEHICLE_ENTER)
                 
 
-            # Biar CPU ga 100%
+            # Prevent CPU 100%
             time.sleep(0.01)
