@@ -539,7 +539,7 @@ class MainProcess:
                 self._payload.update(
                     {
                         "ticket_number": ticket_number,
-                        "time_in": time_in,
+                        "entry_time": time_in,
                         "service_name": self._selected_service.get("name"),
                         "price": self._selected_service.get("price"),
                     }
