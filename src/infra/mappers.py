@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from dispenser_carwash.domain.entities.service_type import ServiceType
 from dispenser_carwash.domain.entities.ticket import Ticket
 
 
@@ -28,3 +29,18 @@ class TicketNetworkMapper:
             service_type_id=data["service_type_id"],
             entry_time=datetime.fromisoformat(data["entry_time"]),
         )
+
+
+
+class ServiceTypeNetworkMapper:
+    @staticmethod
+    def from_response(data: dict) -> list[ServiceType]:
+        return [
+            ServiceType(
+                id=item["id"],
+                name=item["name"],
+                desc=item.get("desc"),
+                price=item["price"],
+            )
+            for item in data["data"] 
+        ]
