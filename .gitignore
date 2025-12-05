@@ -56,8 +56,8 @@ dist/
 *.tmp
 *.old
 
-# Hardware testing
-test_*.py
+# # Hardware testing
+# test_*.py
 
 # Data
 data/
