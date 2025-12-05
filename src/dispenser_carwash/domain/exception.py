@@ -1,6 +1,9 @@
 class DomainError(Exception):
     """Base domain exception"""
-    
+
+class UseCaseError(Exception):
+    pass 
+
 class RepositoryError(DomainError):
     pass 
 
@@ -15,9 +18,16 @@ class InvalidDeviceError(DomainError):
     """Device error"""
     pass 
 
+class InitialServicesAreNotInitialize(UseCaseError):
+    pass     
+
 class ServiceTypeRepositoryError(RepositoryError):
     pass
 
 class TicketRepositoryError(RepositoryError):
     pass
+
+class PrinterUnavailable(Exception):
+    pass
+
 
