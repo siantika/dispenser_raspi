@@ -6,7 +6,6 @@ from dispenser_carwash.domain.exception import InvalidTicketNumberError
 
 @dataclass 
 class Ticket:
-    id: int | None
     service_type_id: int 
     ticket_number: str 
     entry_time: datetime 
