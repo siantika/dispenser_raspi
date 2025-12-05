@@ -2,15 +2,13 @@
 import usb.core  # dari pyusb
 from escpos.printer import Usb
 
-from dispenser_carwash.domain.interfaces.i_printer import IPrinter
+from dispenser_carwash.domain.exception import PrinterUnavailable
+from dispenser_carwash.domain.interfaces.hardware.i_printer import IPrinter
 from dispenser_carwash.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 
-class PrinterUnavailable(Exception):
-    """Dipakai saat printer tidak terhubung / hilang."""
-    pass
 
 
 class UsbEscposDriver(IPrinter):
