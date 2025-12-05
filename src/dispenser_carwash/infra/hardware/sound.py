@@ -1,8 +1,8 @@
-from typing import Dict, Optional, Protocol
+from typing import Dict, Optional
 
 import pygame
 
-from dispenser_carwash.domain.interfaces.i_sound import ISound
+from dispenser_carwash.domain.interfaces.hardware.i_sound import ISound
 from dispenser_carwash.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
