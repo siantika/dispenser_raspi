@@ -2,7 +2,6 @@ import requests
 
 
 class HttpClient:
-    """ Pakau global/settings untuk argument """
     def __init__(self, base_url: str, timeout: int = 5):
         self.base_url = base_url
         self.session = requests.Session()
