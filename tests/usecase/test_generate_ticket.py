@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from dispenser_carwash.application.generate_ticket_uc import (
-    RegisterTicketUc,
+    GenerateTicketUc,
     TicketEan13Generator,
 )
 from dispenser_carwash.domain.entities.ticket import Ticket
@@ -105,9 +105,9 @@ class TestCreateEanTicket:
             TicketEan13Generator.create_ean_ticket(service_id=1, sequence=10_000_000)
 
 
-class TestRegisterTicketUc:
+class TestGenerateTicketUc:
     def test_execute_returns_ticket_entity(self):
-        uc = RegisterTicketUc(initial_sequence=1)
+        uc = GenerateTicketUc(initial_sequence=1)
         service_id = 3
 
         ticket = uc.execute(service_id)
@@ -119,7 +119,7 @@ class TestRegisterTicketUc:
         assert ticket.ticket_number.isdigit()
 
     def test_execute_ticket_number_is_valid_ean13(self):
-        uc = RegisterTicketUc(initial_sequence=1)
+        uc = GenerateTicketUc(initial_sequence=1)
         service_id = 3
 
         ticket = uc.execute(service_id)
@@ -132,7 +132,7 @@ class TestRegisterTicketUc:
         assert last_digit == expected_checksum
 
     def test_sequence_increments_between_calls_and_reflected_in_ticket_number(self):
-        uc = RegisterTicketUc(initial_sequence=1)
+        uc = GenerateTicketUc(initial_sequence=1)
         service_id = 3
 
         t1 = uc.execute(service_id)
@@ -156,7 +156,7 @@ class TestRegisterTicketUc:
         assert seq2 + 1 == seq3
 
     def test_entry_time_is_utc_and_close_to_now(self):
-        uc = RegisterTicketUc(initial_sequence=1)
+        uc = GenerateTicketUc(initial_sequence=1)
         service_id = 3
 
         before = datetime.now(UTC)
