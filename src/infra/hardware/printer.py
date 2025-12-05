@@ -1,8 +1,8 @@
-from typing import Protocol
 
 import usb.core  # dari pyusb
 from escpos.printer import Usb
 
+from dispenser_carwash.domain.interfaces.i_printer import IPrinter
 from dispenser_carwash.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -13,23 +13,7 @@ class PrinterUnavailable(Exception):
     pass
 
 
-class PrinterDriver(Protocol):
-    def text(self, txt: str) -> None: ...
-    def barcode(
-        self,
-        code: str,
-        bc_type: str,
-        height: int = 64,
-        width: int = 3,
-        pos: str = "BELOW",
-        font: str = "A",
-    ) -> None: ...
-    def cut(self) -> None: ...
-    def close(self) -> None: ...
-    def set(self, **kwargs): ...
-
-
-class UsbEscposDriver(PrinterDriver):
+class UsbEscposDriver(IPrinter):
     def __init__(self, vid: int, pid: int, timeout: int = 1):
         self._vid = vid
         self._pid = pid

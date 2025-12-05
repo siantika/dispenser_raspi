@@ -2,20 +2,13 @@ from typing import Dict, Optional, Protocol
 
 import pygame
 
+from dispenser_carwash.domain.interfaces.i_sound import ISound
 from dispenser_carwash.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 
-class Sound(Protocol):
-    def load(self, file_path: str) -> None: ...
-    def load_many(self, files: Dict[str, str]) -> None: ...
-    def play(self, title: str) -> None: ...
-    def stop(self) -> None: ...
-    def is_busy(self) -> bool: ...
-
-
-class PyGameSound(Sound):
+class PyGameSound(ISound):
     def __init__(self, hw_driver: pygame):
         self._hw_driver = hw_driver
 

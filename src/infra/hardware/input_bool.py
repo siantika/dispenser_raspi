@@ -1,11 +1,7 @@
-from typing import Protocol
+from dispenser_carwash.domain.interfaces.i_input_bool import IInputBool
 
 
-class InputBool(Protocol):
-    def read_input(self) -> bool:
-        ...
-
-class InputGpio(InputBool):
+class InputGpio(IInputBool):
     def __init__(self, hw_driver):
         self._hw_driver = hw_driver
         
