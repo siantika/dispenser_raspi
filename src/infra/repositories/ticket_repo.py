@@ -7,7 +7,7 @@ from infra.http_client import HttpClient
 from infra.mappers import TicketNetworkMapper
 
 
-class TicketRepositoryRemote(ITicketRepository):
+class TicketRepositoryHttp(ITicketRepository):
     def __init__(self, http_client:HttpClient):
         self.http = http_client
 
