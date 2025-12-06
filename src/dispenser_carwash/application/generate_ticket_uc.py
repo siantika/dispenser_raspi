@@ -40,7 +40,7 @@ class TicketEan13Generator:
 
 
 
-class GenerateTicketUc:
+class GenerateTicketUseCase:
     def __init__(self, initial_sequence: int):
         self._sequence = initial_sequence
 

@@ -2,7 +2,7 @@
 from dispenser_carwash.domain.interfaces.hardware.i_input_bool import IInputBool
 
 
-class DetectVehicle:
+class DetectVehicleUseCase:
     def __init__(self, driver:IInputBool):
         self.driver = driver 
     

@@ -2,7 +2,7 @@
 from dispenser_carwash.domain.interfaces.hardware.i_output_bool import IOutputBool
 
 
-class OpenGate:
+class OpenGateUseCase:
     
     def __init__(self, driver:IOutputBool):
         self.gate_driver =  driver

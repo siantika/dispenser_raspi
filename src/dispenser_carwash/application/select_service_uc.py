@@ -4,7 +4,7 @@ from dispenser_carwash.domain.entities.service_type import ServiceType
 from dispenser_carwash.domain.exception import InitialServicesAreNotInitialize
 
 
-class SelectService:
+class SelectServiceUseCase:
     def __init__(self, services: List[ServiceType]):
         if not services:  
             raise InitialServicesAreNotInitialize(
