@@ -1,8 +1,10 @@
-from dispenser_carwash.domain.interfaces.i_input_bool import IInputBool
+from gpiozero import Button
+
+from dispenser_carwash.domain.interfaces.hardware.i_input_bool import IInputBool
 
 
 class InputGpio(IInputBool):
-    def __init__(self, hw_driver):
+    def __init__(self, hw_driver:Button):
         self._hw_driver = hw_driver
         
     def read_input(self) -> bool:
