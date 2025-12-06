@@ -1,9 +1,17 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
+from enum import Enum
 
 from dispenser_carwash.domain.exception import InvalidDeviceError
 
+
+class DeviceStatus(Enum):
+    """ for status operation """
+    NET_ERROR = "NET_ERROR"
+    PRINTER_ERROR = "PRINTER_ERROR"
+    FINE = "FINE"
+    SHUTDOWN = "SHUTDOWN"   
+    
 
 @dataclass
 class Device:
