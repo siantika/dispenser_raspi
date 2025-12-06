@@ -1,20 +1,47 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
+from dispenser_carwash.domain.entities.service_type import ServiceType
+from dispenser_carwash.domain.entities.ticket import Ticket
 from dispenser_carwash.domain.exception import PrinterUnavailable
 from dispenser_carwash.domain.interfaces.hardware.i_printer import IPrinter
 from dispenser_carwash.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-@dataclass 
+
+@dataclass
 class PayloadToPrinter:
-    ticket_number:str 
-    entry_time:datetime 
-    service_name: str 
+    ticket_number: str
+    entry_time: str     
+    service_name: str
     price: Decimal
-    
+
+
+def convert_to_wita(dt: datetime) -> datetime:
+    """Konversi datetime ke WITA (Asia/Makassar, UTC+8)."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+
+    return dt.astimezone(ZoneInfo("Asia/Makassar"))
+
+
+def generate_printer_payload(ticket: Ticket,
+                             service_type: ServiceType) -> PayloadToPrinter:
+
+    dt_wita = convert_to_wita(ticket.entry_time)
+
+    # Format tampilan untuk printer:
+    formatted_time = dt_wita.strftime("%d-%m-%Y  %H:%M:%S")
+
+    return PayloadToPrinter(
+        ticket_number=ticket.ticket_number,
+        entry_time=formatted_time,
+        service_name=service_type.name,
+        price=service_type.price
+    )
     
 
 class PrintTicketUseCase:
@@ -25,7 +52,6 @@ class PrintTicketUseCase:
         """
         returns: bool -> True means printer is working, False means printer is not working.
         """
-        #ubah jam ke WITA, sekarang masih UTC
         try:
            
             # ============================
