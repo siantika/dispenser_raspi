@@ -30,4 +30,5 @@ class TicketRepositoryError(RepositoryError):
 class PrinterUnavailable(Exception):
     pass
 
-
+class LastTicketNumberRepositoryError(RepositoryError):
+    pass 
