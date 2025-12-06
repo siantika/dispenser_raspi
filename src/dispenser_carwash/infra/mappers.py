@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from dispenser_carwash.domain.entities.last_ticket_number import LastTicketNumber
 from dispenser_carwash.domain.entities.service_type import ServiceType
 from dispenser_carwash.domain.entities.ticket import Ticket
 
@@ -44,3 +45,10 @@ class ServiceTypeNetworkMapper:
             )
             for item in data["data"] 
         ]
+
+
+class LastTicketNumberNetworkMapper:
+    def from_response(data: dict) -> LastTicketNumber:
+        return LastTicketNumber(
+            ticket_number=data['sequence_number']
+        )
