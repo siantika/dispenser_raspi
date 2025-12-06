@@ -1,9 +1,8 @@
 import time
-from typing import Protocol
 
 from gpiozero import LED
 
-from dispenser_carwash.domain.interfaces.i_output_bool import IOutputBool
+from dispenser_carwash.domain.interfaces.hardware.i_output_bool import IOutputBool
 
 
 class OutputGpio(IOutputBool):
