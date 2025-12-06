@@ -41,8 +41,13 @@ class TicketEan13Generator:
 
 
 class GenerateTicketUseCase:
-    def __init__(self, initial_sequence: int):
-        self._sequence = initial_sequence
+    def __init__(self):
+        self._sequence = 0
+        
+    def set_initial_sequence(self, value:int):
+        if not isinstance(value, int):
+            raise ValueError(f"Got instance type {type(value)} instead of 'int' ")
+        self._sequence = value
 
     def execute(self, service_id: int) -> Ticket:
         """
