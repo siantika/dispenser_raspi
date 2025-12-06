@@ -23,6 +23,7 @@ class Settings:
         "network_error": 0.2,
         "printer_error": 0.8,
     }
+    TIMEOUT_ASC_HTTP = 5 # in seconds
     INTERVAL_RECONNECT = 5
     TIMEOUT_PUT_QUEUE = 5
     """ printer properties"""
@@ -42,6 +43,7 @@ class Settings:
         LED_PINS = 20
 
     class Server:
+        BASE_URL = "http://192.168.100.29:8000/api/v1"
         SEND_URL = "http://192.168.100.29:8000/api/v1/tickets"
         INIT_DATA_URL = "http://192.168.100.29:8000/api/v1/init-data"
 
