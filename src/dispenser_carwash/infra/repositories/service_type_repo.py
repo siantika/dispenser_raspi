@@ -9,8 +9,8 @@ from dispenser_carwash.infra.mappers import ServiceTypeNetworkMapper
 
 
 class ServiceTypeRepoHttp(IServiceTypeRepository):
-    def __init__(self, http: AsyncHttpClient):
-        self.http = http
+    def __init__(self, http_client: AsyncHttpClient):
+        self.http = http_client
         
     async def list_all(self):
         try:

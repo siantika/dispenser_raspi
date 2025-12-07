@@ -119,8 +119,8 @@ def build_app() -> AppContext:
     
   
     # --- Repositories ---
-    ticket_repo = TicketRepositoryHttp(http_client=http_client)
-    service_type_repo = ServiceTypeRepoHttp(http_client=http_client)
+    ticket_repo = TicketRepositoryHttp(http_client)
+    service_type_repo = ServiceTypeRepoHttp(http_client)
     last_ticket_number_repo =LastTicketNumberRepository(http_client)
    
     # --- Use cases ---
