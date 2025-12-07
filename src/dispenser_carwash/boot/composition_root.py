@@ -38,11 +38,12 @@ from dispenser_carwash.worker.primary_worker import (
 logger = setup_logger(__name__)
 
 def get_sound() -> Dict[str, str]:
-    BASE_DIR = Path(__file__).resolve().parent
-    PROJECT_ROOT = BASE_DIR.parent.parent.parent.parent
+    # composition_root.py -> boot -> dispenser_carwash -> src -> project root
+    PROJECT_ROOT = Path(__file__).resolve().parents[3]
     SOUNDS_DIR = PROJECT_ROOT / "assets" / "sounds"
-    logger.info(f"base dir {BASE_DIR}")
-    logger.info(f"project root {PROJECT_ROOT}")
+
+    logger.info(f"📁 Project root: {PROJECT_ROOT}")
+    logger.info(f"🎧 Sounds dir: {SOUNDS_DIR}")
 
     if not SOUNDS_DIR.exists() or not SOUNDS_DIR.is_dir():
         logger.error(f"🚨 Sound directory not found: {SOUNDS_DIR}")
@@ -56,9 +57,11 @@ def get_sound() -> Dict[str, str]:
 
     if not sounds:
         logger.warning(f"⚠ No sound files found in: {SOUNDS_DIR}")
+    else:
+        logger.info(f"🎵 Loaded {len(sounds)} sound files from {SOUNDS_DIR}")
 
-    logger.info(f"🎵 Loaded {len(sounds)} sound files from {SOUNDS_DIR}")
     return sounds
+
 
 @dataclass
 class AppContext:
