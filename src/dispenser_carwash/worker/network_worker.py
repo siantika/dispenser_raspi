@@ -166,12 +166,49 @@ class NetworkWorker:
             await asyncio.sleep(self._poll_interval)
 
         self.logger.info("NetworkWorker main loop exited")
+        
+    async def _check_connection_loop_and_update(self) -> None:
+        """
+        Loop terpisah untuk cek konektivitas server secara periodik
+        dan menjaga update service data.
+        """
+        last_init_data = None 
+        self.logger.info("NetworkWorker health-check loop started and init data")
+        while self._running:
+            try:
+                new_init_data = await self.get_init_data_uc.execute()
+                if new_init_data != last_init_data:
+                    self.queue_to_primary(
+                        QueueMessage.new(
+                            topic=QueueTopic.PRIMARY,
+                            kind=MessageKind.EVENT,
+                            payload=new_init_data
+                        )
+                    )
+                    last_init_data = new_init_data
+                    
+                self._send_indicator_status(DeviceStatus.FINE)
+            except Exception:
+                # kalau error → tandai sebagai network error
+                self.logger.warning("Network unreachable during health check and update init data")
+                self._send_indicator_status(DeviceStatus.NET_ERROR)
+            
+            
+            await asyncio.sleep(10)
+        
+        self.logger.info("NetworkWorker health-check loop exited")
 
     def run(self) -> None:
-        """
-        Entry point untuk multiprocessing.Process(target=worker.run).
-        Panggil ini di Process target.
-        """
         self.logger.info("NetworkWorker.run() started (asyncio event loop)")
-        asyncio.run(self._main_loop())
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        # Jalankan main loop + health check dalam 2 task paralel
+        tasks = [
+            loop.create_task(self._main_loop()),
+            loop.create_task(self._check_connection_loop_and_update())
+        ]
+
+        loop.run_until_complete(asyncio.gather(*tasks))
         self.logger.info("NetworkWorker.run() finished")
