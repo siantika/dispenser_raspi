@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict
 
-import pygame
 from gpiozero import LED, Button
 
 from dispenser_carwash.application.detect_vehicle_uc import DetectVehicleUseCase
@@ -19,7 +18,7 @@ from dispenser_carwash.config.settings import Settings
 from dispenser_carwash.infra.hardware.input_bool import InputGpio
 from dispenser_carwash.infra.hardware.out_bool import OutputGpio
 from dispenser_carwash.infra.hardware.printer import UsbEscposDriver
-from dispenser_carwash.infra.hardware.sound import AlsaSoundDriver, PyGameSound
+from dispenser_carwash.infra.hardware.sound import AlsaSoundDriver
 from dispenser_carwash.infra.http_client import AsyncHttpClient
 from dispenser_carwash.infra.repositories.last_ticket_number_repo import (
     LastTicketNumberRepository,
@@ -54,7 +53,7 @@ def get_sound() -> Dict[str, str]:
     sounds = {
         f.stem: str(f.resolve())
         for f in SOUNDS_DIR.iterdir()
-        if f.is_file() and f.suffix.lower() in (".mp3", ".wav")
+        if f.is_file() and f.suffix.lower() in (".wav")
     }
 
     if not sounds:
