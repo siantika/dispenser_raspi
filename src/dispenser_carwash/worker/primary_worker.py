@@ -224,9 +224,10 @@ class PrimaryWorker:
 
             # GREETING
             if self._fsm.state == State.GREETING:
-                self._usecase.play_prompt.sound_player.play("system_ready")
+                self._usecase.play_prompt.execute("system_ready")
+                self.logger.info(f"Nilai driver sound: {self._usecase.play_prompt.sound_player}")
                 self._fsm.trigger(Event.GREETING_DONE)
-                # while True:... #DEBUG
+              
 
             # SELECTING_SERVICE
             if self._fsm.state == State.SELECTING_SERVICE and self._selected_service is None:
