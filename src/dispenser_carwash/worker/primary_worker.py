@@ -189,7 +189,7 @@ class PrimaryWorker:
         self.logger.info(f"List of services: {self._service_data}")
           
         self._usecase.select_service.set_list_of_services(self._service_data)
-        self._usecase.generate_ticket.set_initial_sequence()       
+        self._usecase.generate_ticket.set_initial_sequence(self._last_ticket_number)       
 
         self._to_status.put(
             QueueMessage.new(
