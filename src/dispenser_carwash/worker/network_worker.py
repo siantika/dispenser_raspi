@@ -1,5 +1,6 @@
 import multiprocessing as mp
 import time
+from queue import Empty
 
 from dispenser_carwash.application.get_initial_data import GetInitialDataUseCase
 from dispenser_carwash.application.register_ticket_uc import RegisterTicketUseCase
@@ -91,13 +92,14 @@ class NetworkWorker:
 
     # ------------ main loop ------------ #
 
-    def run(self) -> None:
+    def run(self):
         while self._running:
-            msg: QueueMessage = self.queue_from_primary.get_nowait()
-            self._handle_one_message(msg)
-           
-            # di sini kamu juga bisa:
-            # - cek status koneksi
-            # - retry deferred request, dll
+            try:
+                msg: QueueMessage = self.queue_from_primary.get_nowait()
+            except Empty:
+                # nggak ada pesan, lanjut loop (bisa sleep dikit)
+                time.sleep(self._poll_interval)
+                continue
 
-            time.sleep(self._poll_interval)
+            # kalau lolos dari except berarti `msg` ada, silakan diproses
+            self._handle_one_message(msg)
