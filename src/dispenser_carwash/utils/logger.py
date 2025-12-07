@@ -1,21 +1,18 @@
 import logging
-import logging.handlers
-import multiprocessing as mp
 from typing import Optional
 
-# Queue global untuk logging antar proses
-_log_queue: Optional[mp.Queue] = None
 
-
-def get_queue() -> mp.Queue:
-    global _log_queue
-    if _log_queue is None:
-        _log_queue = mp.Queue(-1)  # unlimited size
-    return _log_queue
-
-
-def listener_configurer():
+def _configure_root_logger() -> None:
+    """
+    Configure root logger one time.
+    If already configured, skip.
+    """
     root = logging.getLogger()
+
+    if root.handlers:
+        # Already configured → do nothing
+        return
+
     handler = logging.StreamHandler()
     formatter = logging.Formatter(
         "[%(asctime)s] %(levelname)-8s [%(processName)s] %(message)s",
@@ -23,33 +20,19 @@ def listener_configurer():
     )
     handler.setFormatter(formatter)
     root.addHandler(handler)
+
+    # Set minimum log level
     root.setLevel(logging.INFO)
 
 
-def listener_process(queue: mp.Queue):
-    listener_configurer()
-    while True:
-        try:
-            record = queue.get()
-            if record is None:  # sinyal shutdown
-                break
-            logger = logging.getLogger(record.name)
-            logger.handle(record)
-        except Exception:
-            pass
+def setup_logger(name: str = "app", queue: Optional[object] = None) -> logging.Logger:
+    """
+    Create/get logger with standard formatting.
+    `queue` argument ignored for backward compatibility.
+    """
+    # Make sure root logger is configured once
+    _configure_root_logger()
 
-
-def worker_configurer(queue: mp.Queue):
-    h = logging.handlers.QueueHandler(queue)
-    root = logging.getLogger()
-    root.addHandler(h)
-    root.setLevel(logging.INFO)
-
-
-def setup_logger(name: str = "app", queue: Optional[mp.Queue] = None):
-    if queue is None:
-        q = get_queue()
-        worker_configurer(q)
-    else:
-        worker_configurer(queue)
-    return logging.getLogger(name)
+    logger = logging.getLogger(name)
+    logger.propagate = True  # send to root handler
+    return logger
