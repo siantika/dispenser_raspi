@@ -65,12 +65,28 @@ class AlsaSoundDriver(ISound):
     """
 
     def __init__(self, base_path: Union[str, Path]):
+        # Base folder kalau nanti mau pakai path relatif
         self.base_path = Path(base_path)
-        self._sounds: Dict[str, Path] = {}     # mapping: "system_ready" -> Path(.../system_ready.wav)
+        self._sounds: Dict[str, Path] = {}     # "system_ready" -> Path(.../system_ready.wav)
         self._default: Optional[Path] = None   # optional default sound
         self._current_proc: Optional[subprocess.Popen] = None
 
-    # --- Implementasi dari ISound ---
+    # -------------
+    # Helper internal
+    # -------------
+
+    def _cleanup_finished(self) -> None:
+        """
+        Bersihkan referensi kalau proses sudah selesai (supaya tidak jadi zombie).
+        """
+        if self._current_proc is not None:
+            # poll() akan memanggil waitpid(WNOHANG) -> proses jadi reaped
+            if self._current_proc.poll() is not None:
+                self._current_proc = None
+
+    # ------------------------
+    # Implementasi dari ISound
+    # ------------------------
 
     def load(self, name: str, file_path: Union[str, Path]) -> None:
         """
@@ -95,10 +111,12 @@ class AlsaSoundDriver(ISound):
     def load_many(self, sounds: Dict[str, Path]) -> None:
         """
         Load banyak file sekaligus, mapping name -> Path.
+        Biasanya dipakai bersama get_sounds().
         """
         for name, p in sounds.items():
             if not isinstance(p, Path):
                 p = Path(p)
+
             if not p.exists():
                 logger.warning(f"⚠ Sound file not found for '{name}': {p}")
                 continue
@@ -107,7 +125,8 @@ class AlsaSoundDriver(ISound):
 
         if self._default is None and self._sounds:
             # kalau ada key "system_ready" pakai itu, kalau tidak pakai entri pertama
-            self._default = self._sounds.get(next(iter(self._sounds.keys())))
+            self._default = self._sounds.get("system_ready") or self._sounds[next(iter(self._sounds.keys()))]
+
         logger.info(f"✅ Total sounds loaded: {len(self._sounds)}")
 
     def play(self, name: Optional[str] = None) -> None:
@@ -115,6 +134,9 @@ class AlsaSoundDriver(ISound):
         Play suara berdasarkan name. Kalau name None, pakai default.
         Non-blocking ke proses utama (subprocess jalan sendiri).
         """
+        # bersihkan referensi proses lama yang sudah selesai
+        self._cleanup_finished()
+
         if name is None:
             path = self._default
         else:
@@ -124,7 +146,7 @@ class AlsaSoundDriver(ISound):
             logger.error(f"🚨 Sound key not found: {name}")
             return
 
-        # Stop dulu kalau ada proses sebelumnya
+        # Stop dulu kalau ada proses sebelumnya yang MASIH hidup
         self.stop()
 
         try:
@@ -142,21 +164,35 @@ class AlsaSoundDriver(ISound):
         """
         Hentikan suara yang sedang diputar (kalau ada).
         """
-        if self._current_proc is not None:
-            try:
+        if self._current_proc is None:
+            return
+
+        try:
+            # kalau masih hidup, terminate lalu tunggu sebentar agar reaped
+            if self._current_proc.poll() is None:
                 self._current_proc.terminate()
-                self._current_proc = None
-                logger.info("⏹ Sound stopped")
-            except Exception as e:
-                logger.exception(f"Failed to stop sound: {e}")
+                try:
+                    self._current_proc.wait(timeout=1.0)
+                except subprocess.TimeoutExpired:
+                    self._current_proc.kill()
+                    self._current_proc.wait(timeout=1.0)
+            self._current_proc = None
+            logger.info("⏹ Sound stopped")
+        except Exception as e:
+            logger.exception(f"Failed to stop sound: {e}")
+            self._current_proc = None
 
     def is_busy(self) -> bool:
         """
         Return True kalau masih ada proses `aplay` yang hidup.
-        Ini implementasi paling simpel untuk memenuhi kontrak ISound.
         """
         if self._current_proc is None:
             return False
 
-        # poll() -> None = masih jalan, selain itu = sudah selesai
-        return self._current_proc.poll() is None
+        ret = self._current_proc.poll()  # None = masih jalan, selain itu = selesai & reaped
+        if ret is None:
+            return True
+
+        # sudah selesai
+        self._current_proc = None
+        return False
