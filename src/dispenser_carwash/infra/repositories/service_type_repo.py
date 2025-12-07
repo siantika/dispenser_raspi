@@ -14,7 +14,7 @@ class ServiceTypeRepoHttp(IServiceTypeRepository):
         
     async def list_all(self):
         try:
-            resp = await self.http.get("/service-types")
+            resp = await self.http.get("/service_types")
             body = resp.json()
             
             payload = body.get("data") 
