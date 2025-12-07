@@ -164,7 +164,13 @@ class PrimaryWorker:
         self._service_data = initial_data.payload.get("list_of_services")
 
   
-        self._to_status.put(DeviceStatus.FINE)
+        self._to_status.put(
+            QueueMessage.new(
+                topic=QueueTopic.NETWORK,
+                kind= MessageKind.COMMAND,
+                payload={
+                    "command": "GET_INITIAL_DATA"
+                }), True, 3)
         self._ticket_gen = GenerateTicketUseCase(self._last_ticket_number)
 
         while True:
