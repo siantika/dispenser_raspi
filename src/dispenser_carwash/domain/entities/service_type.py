@@ -6,6 +6,7 @@ from dispenser_carwash.domain.exception import InvalidServicePriceError
 
 @dataclass
 class ServiceType:
+    id:int
     name: str
     desc: str
     price: Decimal
