@@ -112,7 +112,11 @@ class PrimaryWorker:
         self._fsm = fsm
         self._ticket_gen = None 
         self.generated_ticket:Ticket = None 
-        self._to_status.put(DeviceStatus.FINE)
+        self._to_status.put(QueueMessage.new(
+             topic=QueueTopic.INDICATOR,
+             kind=MessageKind.EVENT,
+             payload={"device_status":DeviceStatus.FINE}
+            ))
         
     def selecting_service(self) -> ServiceType:            
         if self._usecase.listen_service_1.execute():
@@ -236,7 +240,11 @@ class PrimaryWorker:
                     # NOTE: it should be go to state "PRINTER-ERROR" the logs it
                     self._fsm.trigger(Event.PRINT_DONE)
                 else:
-                    self._to_status.put(DeviceStatus.FINE)
+                    self._to_status.put(QueueMessage.new(
+                    topic=QueueTopic.INDICATOR,
+                    kind=MessageKind.EVENT,
+                    payload={"device_status":DeviceStatus.FINE}
+            ))
                     self._fsm.trigger(Event.PRINT_DONE)
                 
             # Open the gate
