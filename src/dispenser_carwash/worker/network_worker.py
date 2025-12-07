@@ -33,6 +33,7 @@ class NetworkWorker:
         self._poll_interval = poll_interval
         self._running = True
         self.logger = setup_logger("net_worker")
+        self.logger.info("NetWorker successfully started")
 
     def stop(self) -> None:
         self._running = False
