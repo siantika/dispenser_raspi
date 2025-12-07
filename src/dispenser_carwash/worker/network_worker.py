@@ -14,7 +14,6 @@ from dispenser_carwash.worker.dto.queue_dto import (
     QueueTopic,
 )
 
-logger = setup_logger("net_worker")
 
 class NetworkWorker:
     def __init__(
@@ -33,6 +32,7 @@ class NetworkWorker:
         self.queue_to_indicator = to_indicator
         self._poll_interval = poll_interval
         self._running = True
+        self.logger = setup_logger("net_worker")
 
     def stop(self) -> None:
         self._running = False
@@ -58,7 +58,8 @@ class NetworkWorker:
             ticket = Ticket(**payload)
             try:
                 response = await self.reg_ticket_uc.execute(ticket)
-                logger.info(f"response from server: {response}")
+                self.logger.info(f"response from server: {response}")
+                print(f"response from server: {response}")
                 # kalau berhasil, kasih tahu indikator FINE (optional)
                 ok_msg = QueueMessage.new(
                     kind=MessageKind.EVENT,
