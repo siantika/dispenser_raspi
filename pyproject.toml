@@ -9,6 +9,7 @@ dependencies = [
     "gpiozero>=2.0.1",
     "pygame>=2.6.1",
     "requests >= 2.32.5",
+    "httpx==0.28.1",
 ]
 
 # Dependensi tambahan untuk development
