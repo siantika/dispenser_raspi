@@ -19,7 +19,7 @@ class GetInitialDataUseCase:
         list_of_services = await self.service_type_repo.list_all()
         
         return {
-            "last_ticket": last_ticket,
+            "last_ticket_number": last_ticket,
             "list_of_services": list_of_services 
         }
         
