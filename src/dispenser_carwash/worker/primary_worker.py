@@ -267,6 +267,7 @@ class PrimaryWorker:
                         json.dumps(asdict(self.generated_ticket), default=str)
                     )
                 )
+                self.logger.info(f"Payalod to be sent: {self._payload_to_net_worker}")
                 self._fsm.trigger(Event.TICKET_GENERATED)
 
             # SENDING_DATA
