@@ -157,20 +157,28 @@ class PrimaryWorker:
         
         if initial_data is None:
             self.logger.error("Failed to get initial data! Please restart the device!")
+            self._to_status(
+                QueueMessage.new(
+                    topic=QueueTopic.INDICATOR,
+                    kind=MessageKind.COMMAND,
+                    
+                )
+            )
             #restart
             while True: ...
         
         # If success to get initial data, do this
         self._last_ticket_number = initial_data.payload.get("last_ticket_number")
         self._service_data = initial_data.payload.get("list_of_services")
+        self._usecase.select_service.set_list_of_services(self._service_data)
 
   
         self._to_status.put(
             QueueMessage.new(
-                topic=QueueTopic.NETWORK,
-                kind= MessageKind.COMMAND,
+                topic=QueueTopic.INDICATOR,
+                kind= MessageKind.EVENT,
                 payload={
-                    "command": "GET_INITIAL_DATA"
+                    "device_status": DeviceStatus.FINE
                 }), True, 3)
         self._ticket_gen = GenerateTicketUseCase()
         
