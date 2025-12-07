@@ -1,7 +1,7 @@
 import json
 import multiprocessing as mp
 import time as time_sleep
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from enum import Enum, auto
 
 from dispenser_carwash.application.detect_vehicle_uc import (
@@ -25,7 +25,7 @@ from dispenser_carwash.worker.dto.queue_dto import MessageKind, QueueMessage, Qu
 
 logger = setup_logger(__name__)
 
-
+@dataclass
 class PrimaryUseCase:
     detect_vehicle:DetectVehicleUseCase
     generate_ticket:GenerateTicketUseCase
