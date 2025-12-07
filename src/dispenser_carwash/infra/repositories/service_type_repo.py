@@ -4,8 +4,8 @@ from dispenser_carwash.domain.exception import ServiceTypeRepositoryError
 from dispenser_carwash.domain.interfaces.repositories.i_service_type_repo import (
     IServiceTypeRepository,
 )
-from infra.http_client import AsyncHttpClient
-from infra.mappers import ServiceTypeNetworkMapper
+from dispenser_carwash.infra.http_client import AsyncHttpClient
+from dispenser_carwash.infra.mappers import ServiceTypeNetworkMapper
 
 
 class ServiceTypeRepoHttp(IServiceTypeRepository):
