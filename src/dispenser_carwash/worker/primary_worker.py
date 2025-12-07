@@ -261,6 +261,7 @@ class PrimaryWorker:
                 self.generated_ticket = self._usecase.generate_ticket.execute(
                     self._selected_service.id
                 )
+                self.logger.info(f"ticket generated, number:{self.generated_ticket}")
                 self._payload_to_net_worker.update(
                     json.loads(
                         json.dumps(asdict(self.generated_ticket), default=str)
@@ -277,7 +278,7 @@ class PrimaryWorker:
                             kind=MessageKind.EVENT,
                             payload=self._payload_to_net_worker,
                         ),
-                        timeout=Settings.TIMEOUT_PUT_QUEUE,  # atau self._settings...
+                        timeout=Settings.TIMEOUT_PUT_QUEUE,  
                     )
                 self._fsm.trigger(Event.DATA_SENT)
 
