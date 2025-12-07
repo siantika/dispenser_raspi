@@ -2,7 +2,6 @@ import json
 import multiprocessing as mp
 import time as time_sleep
 from dataclasses import asdict
-from datetime import time
 from enum import Enum, auto
 
 from dispenser_carwash.application.detect_vehicle_uc import (
@@ -12,13 +11,16 @@ from dispenser_carwash.application.generate_ticket_uc import GenerateTicketUseCa
 from dispenser_carwash.application.listen_to_service_uc import ListenToServiceUseCase
 from dispenser_carwash.application.open_gate_uc import OpenGateUseCase
 from dispenser_carwash.application.play_prompt_sound_uc import PlayPromptSoundUseCase
-from dispenser_carwash.application.print_ticket_uc import PrintTicketUseCase
+from dispenser_carwash.application.print_ticket_uc import (
+    PrintTicketUseCase,
+    generate_printer_payload,
+)
 from dispenser_carwash.application.select_service_uc import SelectServiceUseCase
 from dispenser_carwash.config.settings import Settings
 from dispenser_carwash.domain.entities.device import DeviceStatus
 from dispenser_carwash.domain.entities.service_type import ServiceType
+from dispenser_carwash.domain.entities.ticket import Ticket
 from dispenser_carwash.utils.logger import setup_logger
-from dispenser_carwash.worker.dto.printer_format_dto import generate_printer_payload
 from dispenser_carwash.worker.dto.queue_dto import MessageKind, QueueMessage, QueueTopic
 
 logger = setup_logger(__name__)
@@ -109,6 +111,7 @@ class PrimaryWorker:
         self._usecase = usecase
         self._fsm = fsm
         self._ticket_gen = None 
+        self.generated_ticket:Ticket = None 
         self._to_status.put(DeviceStatus.FINE)
         
     def selecting_service(self) -> ServiceType:            
@@ -139,11 +142,14 @@ class PrimaryWorker:
             QueueMessage.new(
                 topic=QueueTopic.NETWORK,
                 kind= MessageKind.COMMAND,
-                payload={}
+                payload={
+                    "command": "GET_INITIAL_DATA"
+                }
             ), True, 3
         )        
         # Blocking until  it get the initial data
-        initial_data:QueueMessage = self._from_net.get()
+        initial_data:QueueMessage= self._from_net.get()
+        
         if initial_data is None:
             logger.error("Failed to get initial data! Please restart the device!")
             #restart
@@ -151,7 +157,7 @@ class PrimaryWorker:
         
         # If success to get initial data, do this
         self._last_ticket_number = initial_data.payload.get("last_ticket_number")
-        self._service_data = initial_data.payload.get("service_data")
+        self._service_data = initial_data.payload.get("list_of_services")
 
   
         self._to_status.put(DeviceStatus.FINE)
@@ -165,6 +171,7 @@ class PrimaryWorker:
                 self._usecase.open_gate.close()
                 self._selected_service = None
                 self._payload_to_net_worker = None 
+                self.generated_ticket = None 
 
             if self._fsm.state == State.IDLE and is_vehicle_present:
                 self._fsm.trigger(Event.ARRIVED)
@@ -191,11 +198,11 @@ class PrimaryWorker:
                 
             # generate a tikcet
             if self._fsm.state == State.GENERATING_TICKET:
-                generated_ticket = self._usecase.generate_ticket.execute(
+                self.generated_ticket = self._usecase.generate_ticket.execute(
                     self._selected_service
                 )
                 self._payload_to_net_worker.update(
-                   json.loads(json.dumps(asdict(generated_ticket), default=str))
+                   json.loads(json.dumps(asdict(self.generated_ticket), default=str))
                 )
 
                 self._fsm.trigger(Event.TICKET_GENERATED)
@@ -203,18 +210,27 @@ class PrimaryWorker:
            
             if self._fsm.state == State.SENDING_DATA:
                 with self._lock:
-                    self._to_net.put(self._payload_to_net_worker,
-                                     timeout=Settings.TIMEOUT_PUT_QUEUE)
+                    self._to_net.put(QueueMessage.new(
+                        topic= QueueTopic.NETWORK,
+                        kind=MessageKind.EVENT,
+                        payload=self._payload_to_net_worker,
+                        ),  timeout=Settings.TIMEOUT_PUT_QUEUE
+                    )
                 self._fsm.trigger(Event.DATA_SENT)
     
 
             # print the ticket
             if self._fsm.state == State.PRINTING_TICKET:
-                print_format = generate_printer_payload(self._payload_to_net_worker, 
+                print_format = generate_printer_payload(self.generated_ticket, 
                                                         self._selected_service)
                 ok = self._usecase.print_ticket.execute(print_format)
                 if not ok:
-                    self._to_status.put(DeviceStatus.PRINTER_ERROR)
+                    self._to_status.put(QueueMessage.new(
+                        topic=QueueTopic.INDICATOR,
+                        kind=MessageKind.COMMAND,
+                        payload={
+                            "device_status":DeviceStatus.PRINTER_ERROR
+                        }))
                     logger.warning("⚠ Ticket is not printed due to printer error. Please check the printer! ")
                     # event it failed, we assume the print session Done and continue to next state
                     # NOTE: it should be go to state "PRINTER-ERROR" the logs it
