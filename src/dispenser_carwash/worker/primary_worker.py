@@ -259,7 +259,7 @@ class PrimaryWorker:
             # GENERATING_TICKET
             if self._fsm.state == State.GENERATING_TICKET:
                 self.generated_ticket = self._usecase.generate_ticket.execute(
-                    self._selected_service
+                    self._selected_service.id
                 )
                 self._payload_to_net_worker.update(
                     json.loads(
