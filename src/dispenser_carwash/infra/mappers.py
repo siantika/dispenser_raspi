@@ -17,7 +17,6 @@ class TicketNetworkMapper:
             "ticket_number": ticket.ticket_number,
             "service_type_id": ticket.service_type_id,
             "entry_time": ticket.entry_time.isoformat(),
-            "status": "PENDING", 
         }
 
     @staticmethod
