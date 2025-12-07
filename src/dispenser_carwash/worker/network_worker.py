@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import asyncio
 import multiprocessing as mp
-import time
 from queue import Empty
+from typing import Optional
 
 from dispenser_carwash.application.get_initial_data import GetInitialDataUseCase
 from dispenser_carwash.application.register_ticket_uc import RegisterTicketUseCase
@@ -32,93 +34,144 @@ class NetworkWorker:
         self.queue_to_indicator = to_indicator
         self._poll_interval = poll_interval
         self._running = True
+
+        # Logger khusus untuk worker ini
         self.logger = setup_logger("net_worker")
-        self.logger.info("NetWorker successfully started")
+        self.logger.info("NetworkWorker successfully created")
 
     def stop(self) -> None:
         self._running = False
+        self.logger.info("NetworkWorker stop() called. Stopping main loop soon...")
+
+    # ------------ helper kecil ------------ #
+
+    def _send_indicator_status(self, status: DeviceStatus) -> None:
+        """Kirim status device ke IndicatorWorker."""
+        msg = QueueMessage.new(
+            kind=MessageKind.EVENT,
+            topic=QueueTopic.INDICATOR,
+            payload={"device_status": status},
+        )
+        try:
+            self.queue_to_indicator.put(msg, timeout=3)
+            self.logger.info(f"Sent indicator status: {status}")
+        except Exception:
+            self.logger.exception("Failed to send indicator status")
 
     # ------------ queue handling (ASYNC) ------------ #
 
     async def _handle_one_message(self, msg: QueueMessage) -> None:
         # hanya proses message untuk NETWORK
         if msg.topic != QueueTopic.NETWORK:
+            self.logger.debug(f"Ignoring message for topic {msg.topic}")
             return
 
         if msg.kind == MessageKind.EVENT:
             await self._handle_event(msg)
         elif msg.kind == MessageKind.COMMAND:
             await self._handle_command(msg)
-        # RESPONSE biasanya dari network ke primary, bukan kebalik
+        else:
+            self.logger.warning(f"Unknown message kind: {msg.kind}")
 
     async def _handle_event(self, msg: QueueMessage) -> None:
         payload = msg.payload or {}
+        self.logger.info(f"Handling EVENT in NetworkWorker. Payload: {payload}")
 
-        # contoh: event kirim ticket baru
+        # contoh: event kirim ticket baru (dari primary)
         if "ticket_number" in payload:
-            ticket = Ticket(**payload)
-            msg = None
+            try:
+                ticket = Ticket(**payload)
+            except Exception:
+                self.logger.exception(
+                    "Failed to construct Ticket from payload in NetworkWorker"
+                )
+                self._send_indicator_status(DeviceStatus.NET_ERROR)
+                return
+
             try:
                 response = await self.reg_ticket_uc.execute(ticket)
-                self.logger.info(f"response from server: {response}")
-                print(f"response from server: {response}")
-                # kalau berhasil, kasih tahu indikator FINE (optional)
+                self.logger.info(f"Response from server (register_ticket): {response}")
+                print(f"[NetworkWorker] response from server: {response}", flush=True)
+
+                # kalau response dianggap gagal (None / False), kirim NET_ERROR
                 if not response:
-                    msg = QueueMessage.new(
-                        topic=QueueTopic.INDICATOR,
-                        kind=MessageKind.EVENT,
-                        payload={"device_status" : DeviceStatus.NET_ERROR}
-                    )
-                msg = QueueMessage.new(
-                    kind=MessageKind.EVENT,
-                    topic=QueueTopic.INDICATOR,
-                    payload={"device_status": DeviceStatus.FINE},
-                )
-                self.queue_to_indicator.put(msg)
+                    self._send_indicator_status(DeviceStatus.NET_ERROR)
+                else:
+                    self._send_indicator_status(DeviceStatus.FINE)
+
             except Exception:
-                # kalau gagal (network/server error),
-                # kirim status NET_ERROR ke indikator
-                err_msg = QueueMessage.new(
-                    kind=MessageKind.EVENT,
-                    topic=QueueTopic.INDICATOR,
-                    payload={"device_status": DeviceStatus.NET_ERROR},
+                # log error lengkap, jangan ditelan
+                self.logger.exception(
+                    "Exception while calling reg_ticket_uc.execute(ticket)"
                 )
-                self.queue_to_indicator.put(err_msg, timeout=3)
+                self._send_indicator_status(DeviceStatus.NET_ERROR)
+
+        else:
+            self.logger.warning(
+                "EVENT received by NetworkWorker without 'ticket_number' in payload"
+            )
 
     async def _handle_command(self, msg: QueueMessage) -> None:
         """
-        Contoh: Primary minta initial data dari server
+        Contoh: Primary minta initial data dari server.
         """
         payload = msg.payload or {}
-        cmd = payload.get("command")
+        cmd: Optional[str] = payload.get("command")
+
+        self.logger.info(f"Handling COMMAND in NetworkWorker. Command: {cmd}")
 
         if cmd == "GET_INITIAL_DATA":
-            data = await self.get_init_data_uc.execute()
-            # pastikan data adalah dict/list primitif, bukan coroutine/objek aneh
-            resp = QueueMessage.new(
-                kind=MessageKind.RESPONSE,
-                topic=QueueTopic.PRIMARY,
-                payload=data,
-            )
-            self.queue_to_primary.put(resp, timeout=3)
+            try:
+                data = await self.get_init_data_uc.execute()
+                self.logger.info("GET_INITIAL_DATA executed successfully")
+
+                resp = QueueMessage.new(
+                    kind=MessageKind.RESPONSE,
+                    topic=QueueTopic.PRIMARY,
+                    payload=data,
+                )
+                self.queue_to_primary.put(resp, timeout=3)
+                self.logger.info("Initial data sent back to PRIMARY")
+            except Exception:
+                self.logger.exception("Failed to execute GET_INITIAL_DATA command")
+
+        else:
+            self.logger.warning(f"Unknown command for NetworkWorker: {cmd}")
 
     # ------------ main loop ------------ #
 
     async def _main_loop(self) -> None:
+        self.logger.info("NetworkWorker main loop started")
         while self._running:
             try:
-                # blocking call di thread main, tapi ini bukan masalah besar
                 msg: QueueMessage = self.queue_from_primary.get(
                     timeout=self._poll_interval
                 )
+                self.logger.info(f"Got message from PRIMARY: {msg}")
             except Empty:
+                # tidak ada message, lanjut loop
+                await asyncio.sleep(self._poll_interval)
+                continue
+            except Exception:
+                self.logger.exception("Unexpected error while reading from queue_from_primary")
+                await asyncio.sleep(self._poll_interval)
                 continue
 
-            await self._handle_one_message(msg)
-            time.sleep(self._poll_interval)
+            try:
+                await self._handle_one_message(msg)
+            except Exception:
+                self.logger.exception("Unexpected error while handling message in NetworkWorker")
+
+            # beri sedikit jeda supaya loop tidak terlalu agresif
+            await asyncio.sleep(self._poll_interval)
+
+        self.logger.info("NetworkWorker main loop exited")
 
     def run(self) -> None:
         """
         Entry point untuk multiprocessing.Process(target=worker.run).
+        Panggil ini di Process target.
         """
+        self.logger.info("NetworkWorker.run() started (asyncio event loop)")
         asyncio.run(self._main_loop())
+        self.logger.info("NetworkWorker.run() finished")
