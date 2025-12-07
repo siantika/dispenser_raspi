@@ -39,7 +39,7 @@ logger = setup_logger(__name__)
 
 def get_sound() -> Dict[str, str]:
     BASE_DIR = Path(__file__).resolve().parent
-    PROJECT_ROOT = BASE_DIR.parent.parent.parent
+    PROJECT_ROOT = BASE_DIR.parent.parent.parent.parent
     SOUNDS_DIR = PROJECT_ROOT / "assets" / "sounds"
     logger.info(f"base dir {BASE_DIR}")
     logger.info(f"project root {PROJECT_ROOT}")
