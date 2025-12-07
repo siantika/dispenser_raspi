@@ -185,6 +185,9 @@ class PrimaryWorker:
         self._last_ticket_number = initial_data.payload.get("last_ticket_number")
         self._service_data = initial_data.payload.get("list_of_services")
         self._usecase.select_service.set_list_of_services(self._service_data)
+        
+        self.logger.info(f"Last ticket number: {self._last_ticket_number}")
+        self.logger.info(f"List of services: {self._service_data}")
 
         self._to_status.put(
             QueueMessage.new(
