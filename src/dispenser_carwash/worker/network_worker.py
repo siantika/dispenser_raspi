@@ -178,12 +178,12 @@ class NetworkWorker:
             try:
                 new_init_data = await self.get_init_data_uc.execute()
                 if new_init_data != last_init_data:
-                    self.queue_to_primary(
+                    self.queue_to_primary.put(
                         QueueMessage.new(
                             topic=QueueTopic.PRIMARY,
                             kind=MessageKind.EVENT,
                             payload=new_init_data
-                        )
+                        ), timeout=3
                     )
                     last_init_data = new_init_data
                     
