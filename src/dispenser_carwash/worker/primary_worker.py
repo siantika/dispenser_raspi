@@ -166,9 +166,7 @@ class PrimaryWorker:
                 topic=QueueTopic.NETWORK,
                 kind=MessageKind.COMMAND,
                 payload={"command": "GET_INITIAL_DATA"},
-            ),
-            True,
-            3,
+            )
         )
         try:
             initial_data: QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
@@ -188,8 +186,6 @@ class PrimaryWorker:
                     kind=MessageKind.EVENT,
                     payload={"device_status": DeviceStatus.FINE},
                 ),
-                True,
-                3,
             )
             self.logger.info("Initial Primary Worker success")
 
