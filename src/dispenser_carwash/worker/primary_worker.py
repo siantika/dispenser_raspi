@@ -224,7 +224,7 @@ class PrimaryWorker:
 
             # GREETING
             if self._fsm.state == State.GREETING:
-                self._usecase.play_prompt.sound_player.play("welcome")
+                self._usecase.play_prompt.sound_player.play("system_ready")
                 self._fsm.trigger(Event.GREETING_DONE)
                 # while True:... #DEBUG
 
