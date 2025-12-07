@@ -50,5 +50,5 @@ class ServiceTypeNetworkMapper:
 class LastTicketNumberNetworkMapper:
     def from_response(data: dict) -> LastTicketNumber:
         return LastTicketNumber(
-            ticket_number=data['sequence_number']
+            sequence_number=data['sequence_number']
         )
