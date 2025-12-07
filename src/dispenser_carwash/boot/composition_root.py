@@ -104,6 +104,7 @@ def build_app() -> AppContext:
     #load sounds 
     sound_files = get_sound()
     sound_player.load_many(sound_files)
+    sound_player.play("system_ready")
      
     
     # Hardware Interface 
