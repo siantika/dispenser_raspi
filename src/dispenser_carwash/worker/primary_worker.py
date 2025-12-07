@@ -161,7 +161,7 @@ class PrimaryWorker:
                 QueueMessage.new(
                     topic=QueueTopic.INDICATOR,
                     kind=MessageKind.COMMAND,
-                    
+                    payload={"device_status":DeviceStatus.NET_ERROR}                    
                 )
             )
             #restart
