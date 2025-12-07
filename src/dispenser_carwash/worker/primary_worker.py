@@ -135,19 +135,19 @@ class PrimaryWorker:
         """Cek tombol service mana yang ditekan, None kalau belum ada."""
         if self._usecase.listen_service_1.execute():
             self._usecase.play_prompt.execute("service_basic", True)
-            return self._usecase.select_service.execute()
+            return self._usecase.select_service.execute("BASIC")
 
         if self._usecase.listen_service_2.execute():
             self._usecase.play_prompt.execute("service_complete", True)
-            return self._usecase.select_service.execute(21)
+            return self._usecase.select_service.execute("COMPLETE")
 
         if self._usecase.listen_service_3.execute():
             self._usecase.play_prompt.execute("service_perfect", True)
-            return self._usecase.select_service.execute(19)
+            return self._usecase.select_service.execute("PERFECT")
 
         if self._usecase.listen_service_4.execute():
             self._usecase.play_prompt.execute("service_cuci_motor", True)
-            return self._usecase.select_service.execute()
+            return self._usecase.select_service.execute("CUCI_MOTOR")
 
         return None
 
