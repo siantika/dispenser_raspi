@@ -14,7 +14,7 @@ PROJECT_ROOT = BASE_DIR.parent.parent.parent
 # Path to the sounds folder
 SOUNDS_DIR = os.path.join(PROJECT_ROOT, "assets", "sounds")
 
-logger.info("Sounds folder path:", SOUNDS_DIR)
+logger.info("Sounds folder path: %s", SOUNDS_DIR)
 
 
 
