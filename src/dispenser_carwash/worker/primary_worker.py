@@ -4,6 +4,7 @@ import time as time_sleep
 from dataclasses import asdict, dataclass
 from enum import Enum, auto
 from queue import Empty
+from typing import Optional
 
 from dispenser_carwash.application.detect_vehicle_uc import (
     DetectVehicleUseCase,
@@ -159,9 +160,7 @@ class PrimaryWorker:
         except Empty:
             return None
         
-        
-    def run(self):
-        # --- 1. Minta initial data ke NetworkWorker ---
+    def _initialize_init_data(self)-> None :
         self._to_net.put(
             QueueMessage.new(
                 topic=QueueTopic.NETWORK,
@@ -171,11 +170,30 @@ class PrimaryWorker:
             True,
             3,
         )
+        try:
+            initial_data: QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
 
-        # TODO: sebaiknya pakai timeout + handling error
-        initial_data: QueueMessage = self._from_net.get()
+            self._last_ticket_number = initial_data.payload.get("last_ticket_number").sequence_number
+            self._service_data = initial_data.payload.get("list_of_services")
+        
+            self.logger.info(f"Last ticket number: {self._last_ticket_number}")
+            self.logger.info(f"List of services: {self._service_data}")
+            
+            self._usecase.select_service.set_list_of_services(self._service_data)
+            self._usecase.generate_ticket.set_initial_sequence(self._last_ticket_number)       
 
-        if initial_data is None:
+            self._to_status.put(
+                QueueMessage.new(
+                    topic=QueueTopic.INDICATOR,
+                    kind=MessageKind.EVENT,
+                    payload={"device_status": DeviceStatus.FINE},
+                ),
+                True,
+                3,
+            )
+            self.logger.info("Initial Primary Worker success")
+
+        except Empty:            
             self.logger.error(
                 "Failed to get initial data! Please restart the device!"
             )
@@ -186,35 +204,13 @@ class PrimaryWorker:
                     payload={"device_status": DeviceStatus.NET_ERROR},
                 )
             )
-            # Untuk saat ini, hang di sini (nanti bisa diganti reboot)
-            while True:
-                time_sleep.sleep(1)
 
-        # --- 2. Set initial data ---
-        self._last_ticket_number = initial_data.payload.get("last_ticket_number").sequence_number
-        self._service_data = initial_data.payload.get("list_of_services")
     
-        self.logger.info(f"Last ticket number: {self._last_ticket_number}")
-        self.logger.info(f"List of services: {self._service_data}")
-          
-        self._usecase.select_service.set_list_of_services(self._service_data)
-        self._usecase.generate_ticket.set_initial_sequence(self._last_ticket_number)       
-
-        self._to_status.put(
-            QueueMessage.new(
-                topic=QueueTopic.INDICATOR,
-                kind=MessageKind.EVENT,
-                payload={"device_status": DeviceStatus.FINE},
-            ),
-            True,
-            3,
-        )
-
-        self.logger.info("Initial Primary Worker success")
-
-        # --- 3. Mulai FSM utama ---
+    def run(self):
+       
+        self._initialize_init_data()
         self._fsm.state = State.IDLE
-        last_state: State | None = None
+        last_state: Optional[State] = None
 
         while True:
             update_service = self.get_services_update()
