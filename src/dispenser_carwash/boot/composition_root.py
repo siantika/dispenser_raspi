@@ -19,7 +19,7 @@ from dispenser_carwash.config.settings import Settings
 from dispenser_carwash.infra.hardware.input_bool import InputGpio
 from dispenser_carwash.infra.hardware.out_bool import OutputGpio
 from dispenser_carwash.infra.hardware.printer import UsbEscposDriver
-from dispenser_carwash.infra.hardware.sound import PyGameSound
+from dispenser_carwash.infra.hardware.sound import AlsaSoundDriver, PyGameSound
 from dispenser_carwash.infra.http_client import AsyncHttpClient
 from dispenser_carwash.infra.repositories.last_ticket_number_repo import (
     LastTicketNumberRepository,
@@ -37,12 +37,14 @@ from dispenser_carwash.worker.primary_worker import (
 
 logger = setup_logger(__name__)
 
-def get_sound() -> Dict[str, str]:
-    # composition_root.py -> boot -> dispenser_carwash -> src -> project root
+def get_sound_path():
     PROJECT_ROOT = Path(__file__).resolve().parents[3]
-    SOUNDS_DIR = PROJECT_ROOT / "assets" / "sounds"
-
     logger.info(f"📁 Project root: {PROJECT_ROOT}")
+    return PROJECT_ROOT / "assets" / "sounds"
+
+    
+def get_sound() -> Dict[str, str]:
+    SOUNDS_DIR = get_sound_path()
     logger.info(f"🎧 Sounds dir: {SOUNDS_DIR}")
 
     if not SOUNDS_DIR.exists() or not SOUNDS_DIR.is_dir():
@@ -99,8 +101,8 @@ def build_app() -> AppContext:
     gpio_led = LED(pin=led_pin)
     printer = UsbEscposDriver(vid=settings.VID,
                               pid= settings.PID)
-    pygame.mixer.init()
-    sound_player = PyGameSound(pygame)
+    
+    sound_player = AlsaSoundDriver(get_sound_path())
     #load sounds 
     sound_files = get_sound()
     sound_player.load_many(sound_files)
