@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any, Dict, List
 
 from dispenser_carwash.domain.entities.last_ticket_number import LastTicketNumber
 from dispenser_carwash.domain.entities.service_type import ServiceType
@@ -35,7 +36,7 @@ class TicketNetworkMapper:
 
 class ServiceTypeNetworkMapper:
     @staticmethod
-    def from_response(data: dict) -> list[ServiceType]:
+    def from_response(data: List[Dict[str, Any]]) -> list[ServiceType]:
         return [
             ServiceType(
                 id=item["id"],
@@ -43,7 +44,7 @@ class ServiceTypeNetworkMapper:
                 desc=item.get("desc"),
                 price=item["price"],
             )
-            for item in data["data"] 
+            for item in data
         ]
 
 
