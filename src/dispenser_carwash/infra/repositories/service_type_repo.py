@@ -15,8 +15,14 @@ class ServiceTypeRepoHttp(IServiceTypeRepository):
     async def list_all(self):
         try:
             resp = await self.http.get("/service-types")
-            data = resp.json()
-            return ServiceTypeNetworkMapper.from_response(data)
+            body = resp.json()
+            
+            payload = body.get("data") 
+            if payload is None:
+                raise ServiceTypeRepositoryError(
+                    "Invalid response: 'data' field is missing"
+                )
+            return ServiceTypeNetworkMapper.from_response(payload)
 
         except HTTPStatusError as e:
             status = e.response.status_code

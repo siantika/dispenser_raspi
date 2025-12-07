@@ -16,8 +16,16 @@ class LastTicketNumberRepository(ILastTicketNumberRepository):
     async def get(self) -> LastTicketNumber:
         try:
             resp = await self.http.get("/last-ticket-number")
-            data = resp.json()
-            return LastTicketNumberNetworkMapper.from_response(data)
+            body = resp.json()          # {status, message, data: {...}}
+
+            payload = body.get("data")  
+            if payload is None:
+                raise LastTicketNumberRepositoryError(
+                    "Invalid response: 'data' field is missing"
+                )
+
+            return LastTicketNumberNetworkMapper.from_response(payload)
+
 
         except HTTPStatusError as e:
             status = e.response.status_code

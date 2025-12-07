@@ -18,8 +18,13 @@ class TicketRepositoryHttp(ITicketRepository):
 
         try:
             resp = await self._http.post("/tickets", json=payload)
-            data = resp.json()             
-            return TicketNetworkMapper.from_response(data)
+            body = resp.json()       
+            payload = body.get("data") 
+            if payload is None:
+                raise TicketRepositoryError(
+                    "Invalid response: 'data' field is missing"
+                )
+            return TicketNetworkMapper.from_response(payload)
 
         except HTTPStatusError as e:
             status = e.response.status_code
