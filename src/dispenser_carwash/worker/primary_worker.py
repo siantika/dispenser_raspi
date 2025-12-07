@@ -181,7 +181,7 @@ class PrimaryWorker:
         while True:
             if cur_state != last_state:
                 last_state = cur_state
-                self.logger.info(f"Current State:{cur_state.value}")
+                self.logger.info(f"Current State:{cur_state.name}")
                 
                 
             is_vehicle_present = self._usecase.detect_vehicle.execute()
