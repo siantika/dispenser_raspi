@@ -7,12 +7,14 @@ from dispenser_carwash.application.get_initial_data import GetInitialDataUseCase
 from dispenser_carwash.application.register_ticket_uc import RegisterTicketUseCase
 from dispenser_carwash.domain.entities.device import DeviceStatus
 from dispenser_carwash.domain.entities.ticket import Ticket
+from dispenser_carwash.utils.logger import setup_logger
 from dispenser_carwash.worker.dto.queue_dto import (
     MessageKind,
     QueueMessage,
     QueueTopic,
 )
 
+logger = setup_logger("net_worker")
 
 class NetworkWorker:
     def __init__(
@@ -55,7 +57,8 @@ class NetworkWorker:
         if "ticket_number" in payload:
             ticket = Ticket(**payload)
             try:
-                await self.reg_ticket_uc.execute(ticket)
+                response = await self.reg_ticket_uc.execute(ticket)
+                logger.info(f"response from server: {response}")
                 # kalau berhasil, kasih tahu indikator FINE (optional)
                 ok_msg = QueueMessage.new(
                     kind=MessageKind.EVENT,
