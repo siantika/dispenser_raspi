@@ -171,7 +171,7 @@ class PrimaryWorker:
                 payload={
                     "command": "GET_INITIAL_DATA"
                 }), True, 3)
-        self._ticket_gen = GenerateTicketUseCase(self._last_ticket_number)
+        self._ticket_gen = GenerateTicketUseCase()
 
         while True:
             is_vehicle_present = self._usecase.detect_vehicle.execute()
