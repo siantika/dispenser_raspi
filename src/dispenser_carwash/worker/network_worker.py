@@ -1,3 +1,4 @@
+import asyncio
 import multiprocessing as mp
 import time
 from queue import Empty
@@ -34,27 +35,27 @@ class NetworkWorker:
     def stop(self) -> None:
         self._running = False
 
-    # ------------ queue handling ------------ #
+    # ------------ queue handling (ASYNC) ------------ #
 
-    def _handle_one_message(self, msg: QueueMessage) -> None:
+    async def _handle_one_message(self, msg: QueueMessage) -> None:
         # hanya proses message untuk NETWORK
         if msg.topic != QueueTopic.NETWORK:
             return
 
         if msg.kind == MessageKind.EVENT:
-            self._handle_event(msg)
+            await self._handle_event(msg)
         elif msg.kind == MessageKind.COMMAND:
-            self._handle_command(msg)
+            await self._handle_command(msg)
         # RESPONSE biasanya dari network ke primary, bukan kebalik
 
-    def _handle_event(self, msg: QueueMessage) -> None:
+    async def _handle_event(self, msg: QueueMessage) -> None:
         payload = msg.payload or {}
 
         # contoh: event kirim ticket baru
         if "ticket_number" in payload:
             ticket = Ticket(**payload)
             try:
-                self.reg_ticket_uc.execute(ticket)
+                await self.reg_ticket_uc.execute(ticket)
                 # kalau berhasil, kasih tahu indikator FINE (optional)
                 ok_msg = QueueMessage.new(
                     kind=MessageKind.EVENT,
@@ -63,17 +64,16 @@ class NetworkWorker:
                 )
                 self.queue_to_indicator.put(ok_msg)
             except Exception:
-                # kalau gagal (network/printer/server error),
+                # kalau gagal (network/server error),
                 # kirim status NET_ERROR ke indikator
-                err_msg = QueueMessage(
+                err_msg = QueueMessage.new(
                     kind=MessageKind.EVENT,
                     topic=QueueTopic.INDICATOR,
                     payload={"device_status": DeviceStatus.NET_ERROR},
                 )
                 self.queue_to_indicator.put(err_msg, timeout=3)
 
-
-    def _handle_command(self, msg: QueueMessage) -> None:
+    async def _handle_command(self, msg: QueueMessage) -> None:
         """
         Contoh: Primary minta initial data dari server
         """
@@ -81,8 +81,8 @@ class NetworkWorker:
         cmd = payload.get("command")
 
         if cmd == "GET_INITIAL_DATA":
-            data = self.get_init_data_uc.execute()
-            # kirim balik ke primary
+            data = await self.get_init_data_uc.execute()
+            # pastikan data adalah dict/list primitif, bukan coroutine/objek aneh
             resp = QueueMessage.new(
                 kind=MessageKind.RESPONSE,
                 topic=QueueTopic.PRIMARY,
@@ -92,14 +92,21 @@ class NetworkWorker:
 
     # ------------ main loop ------------ #
 
-    def run(self):
+    async def _main_loop(self) -> None:
         while self._running:
             try:
-                msg: QueueMessage = self.queue_from_primary.get_nowait()
+                # blocking call di thread main, tapi ini bukan masalah besar
+                msg: QueueMessage = self.queue_from_primary.get(
+                    timeout=self._poll_interval
+                )
             except Empty:
-                # nggak ada pesan, lanjut loop (bisa sleep dikit)
-                time.sleep(self._poll_interval)
                 continue
 
-            # kalau lolos dari except berarti `msg` ada, silakan diproses
-            self._handle_one_message(msg)
+            await self._handle_one_message(msg)
+            time.sleep(self._poll_interval)
+
+    def run(self) -> None:
+        """
+        Entry point untuk multiprocessing.Process(target=worker.run).
+        """
+        asyncio.run(self._main_loop())
