@@ -5,8 +5,8 @@ from dispenser_carwash.domain.exception import TicketRepositoryError
 from dispenser_carwash.domain.interfaces.repositories.i_ticket_repo import (
     ITicketRepository,
 )
-from infra.http_client import AsyncHttpClient
-from infra.mappers import TicketNetworkMapper
+from dispenser_carwash.infra.http_client import AsyncHttpClient
+from dispenser_carwash.infra.mappers import TicketNetworkMapper
 
 
 class TicketRepositoryHttp(ITicketRepository):
