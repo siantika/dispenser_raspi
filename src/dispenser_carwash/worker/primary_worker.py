@@ -135,19 +135,19 @@ class PrimaryWorker:
         """Cek tombol service mana yang ditekan, None kalau belum ada."""
         if self._usecase.listen_service_1.execute():
             self._usecase.play_prompt.execute("service_basic", True)
-            return self._usecase.select_service.execute(self._service_data)
+            return self._usecase.select_service.execute()
 
         if self._usecase.listen_service_2.execute():
             self._usecase.play_prompt.execute("service_complete", True)
-            return self._usecase.select_service.execute(self._service_data)
+            return self._usecase.select_service.execute(21)
 
         if self._usecase.listen_service_3.execute():
             self._usecase.play_prompt.execute("service_perfect", True)
-            return self._usecase.select_service.execute(self._service_data)
+            return self._usecase.select_service.execute(19)
 
         if self._usecase.listen_service_4.execute():
             self._usecase.play_prompt.execute("service_cuci_motor", True)
-            return self._usecase.select_service.execute(self._service_data)
+            return self._usecase.select_service.execute()
 
         return None
 
@@ -243,12 +243,14 @@ class PrimaryWorker:
                     service = self.selecting_service()
                     if service is not None:
                         self._selected_service = service
-
+            
+            
             # Pastikan suara pilihan service selesai dulu
             if (
                 self._selected_service is not None
                 and self._fsm.state == State.SELECTING_SERVICE
             ):
+                self.logger.info(f"Sedang sibuk?:{self._usecase.play_prompt.sound_player.is_busy()}")
                 if not self._usecase.play_prompt.sound_player.is_busy():
                     self._usecase.play_prompt.stop()
                     self._fsm.trigger(Event.SERVICE_SELECTED)

@@ -10,8 +10,8 @@ class SelectServiceUseCase:
     def set_list_of_services(self, value:List[ServiceType]):
         self.list_of_services = value
     
-    def execute(self, service_id: int) -> Optional[ServiceType]:
+    def execute(self, service_name: str) -> Optional[ServiceType]:
         return next(
-            (item for item in self.list_of_services if item.id == service_id),
+            (item for item in self.list_of_services if item.name == service_name),
             None
         )
