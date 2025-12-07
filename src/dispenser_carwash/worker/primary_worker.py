@@ -172,8 +172,17 @@ class PrimaryWorker:
                     "command": "GET_INITIAL_DATA"
                 }), True, 3)
         self._ticket_gen = GenerateTicketUseCase()
-
+        
+        logger.info("Initial Primary Worker success")
+        self._fsm.state = State.IDLE
+        cur_state:State = State.IDLE
+        last_state = None 
         while True:
+            if cur_state != last_state:
+                last_state = cur_state
+                logger.info(f"Current State:{cur_state.value}")
+                
+                
             is_vehicle_present = self._usecase.detect_vehicle.execute()
 
             if self._fsm.state == State.IDLE:
