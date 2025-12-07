@@ -97,193 +97,221 @@ class PrimaryFiniteStateMachine:
 
 
 class PrimaryWorker:
-    def __init__(self, to_net: mp.Queue, from_net: mp.Queue, lock: mp.Lock,
-                 usecase: PrimaryUseCase, fsm: "PrimaryFiniteStateMachine",
-                 to_status:mp.Queue):
+    def __init__(
+        self,
+        to_net: mp.Queue,
+        from_net: mp.Queue,
+        lock: mp.Lock,
+        usecase: PrimaryUseCase,
+        fsm: "PrimaryFiniteStateMachine",
+        to_status: mp.Queue,
+        # settings: Settings,  # opsional kalau mau diinject
+    ):
         self._to_net = to_net
         self._from_net = from_net
         self._to_status = to_status
         self._service_data = None
         self._last_ticket_number = None
-        self._selected_service = None
-        self._payload_to_net_worker = {}
+        self._selected_service: ServiceType | None = None
+        self._payload_to_net_worker: dict = {}
         self._lock = lock
         self._usecase = usecase
         self._fsm = fsm
-        self._ticket_gen = None 
-        self.generated_ticket:Ticket = None 
-        self._to_status.put(QueueMessage.new(
-             topic=QueueTopic.INDICATOR,
-             kind=MessageKind.EVENT,
-             payload={"device_status":DeviceStatus.FINE}
-            ))
+        self.generated_ticket: Ticket | None = None
+        # self._settings = settings
+
         self.logger = setup_logger("PrimaryWorker")
-        
-    def selecting_service(self) -> ServiceType:            
+
+        # Device awal dianggap FINE
+        self._to_status.put(
+            QueueMessage.new(
+                topic=QueueTopic.INDICATOR,
+                kind=MessageKind.EVENT,
+                payload={"device_status": DeviceStatus.FINE},
+            )
+        )
+
+    def selecting_service(self) -> ServiceType | None:
+        """Cek tombol service mana yang ditekan, None kalau belum ada."""
         if self._usecase.listen_service_1.execute():
             self._usecase.play_prompt.execute("service_basic", True)
             return self._usecase.select_service.execute(self._service_data)
-            # self._usecase.sound.stop()
-            
-        elif self._usecase.listen_service_2.execute():
+
+        if self._usecase.listen_service_2.execute():
             self._usecase.play_prompt.execute("service_complete", True)
             return self._usecase.select_service.execute(self._service_data)
-            # self._usecase.sound.stop()
 
-        elif self._usecase.listen_service_3.execute():
+        if self._usecase.listen_service_3.execute():
             self._usecase.play_prompt.execute("service_perfect", True)
             return self._usecase.select_service.execute(self._service_data)
-            # self._usecase.sound.stop()
-            
-        elif self._usecase.listen_service_4.execute():
+
+        if self._usecase.listen_service_4.execute():
             self._usecase.play_prompt.execute("service_cuci_motor", True)
             return self._usecase.select_service.execute(self._service_data)
-            # self._usecase.sound.stop()
-            
-            
+
+        return None
+
     def run(self):
-        # Get data from server
+        # --- 1. Minta initial data ke NetworkWorker ---
         self._to_net.put(
             QueueMessage.new(
                 topic=QueueTopic.NETWORK,
-                kind= MessageKind.COMMAND,
-                payload={
-                    "command": "GET_INITIAL_DATA"
-                }
-            ), True, 3
-        )        
-        # Blocking until  it get the initial data
-        initial_data:QueueMessage= self._from_net.get()
-        
+                kind=MessageKind.COMMAND,
+                payload={"command": "GET_INITIAL_DATA"},
+            ),
+            True,
+            3,
+        )
+
+        # TODO: sebaiknya pakai timeout + handling error
+        initial_data: QueueMessage = self._from_net.get()
+
         if initial_data is None:
-            self.logger.error("Failed to get initial data! Please restart the device!")
-            self._to_status(
+            self.logger.error(
+                "Failed to get initial data! Please restart the device!"
+            )
+            self._to_status.put(
                 QueueMessage.new(
                     topic=QueueTopic.INDICATOR,
                     kind=MessageKind.COMMAND,
-                    payload={"device_status":DeviceStatus.NET_ERROR}                    
+                    payload={"device_status": DeviceStatus.NET_ERROR},
                 )
             )
-            #restart
-            while True: ...
-        
-        # If success to get initial data, do this
+            # Untuk saat ini, hang di sini (nanti bisa diganti reboot)
+            while True:
+                time_sleep.sleep(1)
+
+        # --- 2. Set initial data ---
         self._last_ticket_number = initial_data.payload.get("last_ticket_number")
         self._service_data = initial_data.payload.get("list_of_services")
         self._usecase.select_service.set_list_of_services(self._service_data)
 
-  
         self._to_status.put(
             QueueMessage.new(
                 topic=QueueTopic.INDICATOR,
-                kind= MessageKind.EVENT,
-                payload={
-                    "device_status": DeviceStatus.FINE
-                }), True, 3)
-        self._ticket_gen = GenerateTicketUseCase()
-        
+                kind=MessageKind.EVENT,
+                payload={"device_status": DeviceStatus.FINE},
+            ),
+            True,
+            3,
+        )
+
         self.logger.info("Initial Primary Worker success")
+
+        # --- 3. Mulai FSM utama ---
         self._fsm.state = State.IDLE
-        cur_state:State = State.IDLE
-        last_state = None 
+        last_state: State | None = None
+
         while True:
+            cur_state: State = self._fsm.state
             if cur_state != last_state:
                 last_state = cur_state
-                self.logger.info(f"Current State:{cur_state.name}")
-                
-                
+                self.logger.info(f"Current State: {cur_state.name}")
+
             is_vehicle_present = self._usecase.detect_vehicle.execute()
 
+            # Reset ketika IDLE
             if self._fsm.state == State.IDLE:
                 self._usecase.play_prompt.stop()
                 self._usecase.open_gate.close()
                 self._selected_service = None
-                self._payload_to_net_worker = None 
-                self.generated_ticket = None 
+                self._payload_to_net_worker = {}
+                self.generated_ticket = None
 
+            # Vehicle baru datang
             if self._fsm.state == State.IDLE and is_vehicle_present:
                 self._fsm.trigger(Event.ARRIVED)
 
+            # GREETING
             if self._fsm.state == State.GREETING:
                 self._usecase.play_prompt.execute("welcome", True)
                 if not self._usecase.play_prompt.sound_player.is_busy():
                     self._fsm.trigger(Event.GREETING_DONE)
 
-            # Service Selection
-            if self._fsm.state == State.SELECTING_SERVICE and \
-                self._selected_service is None:
-                # Vehicle leave without selecting a service. The state will back to 
-                # IDLE state
+            # SELECTING_SERVICE
+            if self._fsm.state == State.SELECTING_SERVICE and self._selected_service is None:
                 if not is_vehicle_present:
+                    # Kabur sebelum pilih service
                     self._fsm.trigger(Event.LEAVE_WITHOUT_SELECTING)
                 else:
-                    self._selected_service = self.selecting_service()
-      
-            # Make sure selected service sound are played until it finishes before to next sound play
-            if self._selected_service is not None and self._fsm.state == State.SELECTING_SERVICE:
+                    service = self.selecting_service()
+                    if service is not None:
+                        self._selected_service = service
+
+            # Pastikan suara pilihan service selesai dulu
+            if (
+                self._selected_service is not None
+                and self._fsm.state == State.SELECTING_SERVICE
+            ):
                 if not self._usecase.play_prompt.sound_player.is_busy():
                     self._usecase.play_prompt.stop()
                     self._fsm.trigger(Event.SERVICE_SELECTED)
-                
-            # generate a tikcet
+
+            # GENERATING_TICKET
             if self._fsm.state == State.GENERATING_TICKET:
                 self.generated_ticket = self._usecase.generate_ticket.execute(
                     self._selected_service
                 )
                 self._payload_to_net_worker.update(
-                   json.loads(json.dumps(asdict(self.generated_ticket), default=str))
+                    json.loads(
+                        json.dumps(asdict(self.generated_ticket), default=str)
+                    )
                 )
-
                 self._fsm.trigger(Event.TICKET_GENERATED)
 
-           
+            # SENDING_DATA
             if self._fsm.state == State.SENDING_DATA:
                 with self._lock:
-                    self._to_net.put(QueueMessage.new(
-                        topic= QueueTopic.NETWORK,
-                        kind=MessageKind.EVENT,
-                        payload=self._payload_to_net_worker,
-                        ),  timeout=Settings.TIMEOUT_PUT_QUEUE
+                    self._to_net.put(
+                        QueueMessage.new(
+                            topic=QueueTopic.NETWORK,
+                            kind=MessageKind.EVENT,
+                            payload=self._payload_to_net_worker,
+                        ),
+                        timeout=Settings.TIMEOUT_PUT_QUEUE,  # atau self._settings...
                     )
                 self._fsm.trigger(Event.DATA_SENT)
-    
 
-            # print the ticket
+            # PRINTING_TICKET
             if self._fsm.state == State.PRINTING_TICKET:
-                print_format = generate_printer_payload(self.generated_ticket, 
-                                                        self._selected_service)
+                print_format = generate_printer_payload(
+                    self.generated_ticket, self._selected_service
+                )
                 ok = self._usecase.print_ticket.execute(print_format)
                 if not ok:
-                    self._to_status.put(QueueMessage.new(
-                        topic=QueueTopic.INDICATOR,
-                        kind=MessageKind.COMMAND,
-                        payload={
-                            "device_status":DeviceStatus.PRINTER_ERROR
-                        }))
-                    self.logger.warning("⚠ Ticket is not printed due to printer error. Please check the printer! ")
-                    # event it failed, we assume the print session Done and continue to next state
-                    # NOTE: it should be go to state "PRINTER-ERROR" the logs it
+                    self._to_status.put(
+                        QueueMessage.new(
+                            topic=QueueTopic.INDICATOR,
+                            kind=MessageKind.COMMAND,
+                            payload={"device_status": DeviceStatus.PRINTER_ERROR},
+                        )
+                    )
+                    self.logger.warning(
+                        "⚠ Ticket is not printed due to printer error. "
+                        "Please check the printer!"
+                    )
+                    # TODO: nanti bisa bikin state khusus PRINTER_ERROR
                     self._fsm.trigger(Event.PRINT_DONE)
                 else:
-                    self._to_status.put(QueueMessage.new(
-                    topic=QueueTopic.INDICATOR,
-                    kind=MessageKind.EVENT,
-                    payload={"device_status":DeviceStatus.FINE}
-            ))
+                    self._to_status.put(
+                        QueueMessage.new(
+                            topic=QueueTopic.INDICATOR,
+                            kind=MessageKind.EVENT,
+                            payload={"device_status": DeviceStatus.FINE},
+                        )
+                    )
                     self._fsm.trigger(Event.PRINT_DONE)
-                
-            # Open the gate
+
+            # GATE_OPEN
             if self._fsm.state == State.GATE_OPEN:
                 self._usecase.open_gate.open()
                 self._usecase.play_prompt.execute("taking_ticket", True)
                 self._fsm.trigger(Event.GATE_OPENED)
-            
-            # While vehicle still staying after the gate opened, don't go immidiately
-            # to IDLE state due to it will presume the new car is comming
+
+            # VEHICLE_STAYING
             if self._fsm.state == State.VEHICLE_STAYING:
                 if not self._usecase.detect_vehicle.execute():
                     self._fsm.trigger(Event.VEHICLE_ENTER)
-                
 
-            # Prevent CPU from 100% 
+            # Biar CPU tidak 100%
             time_sleep.sleep(0.01)
