@@ -10,7 +10,7 @@ class PlayPromptSoundUseCase:
         Play prompt by key name.
         force=True -> interrupt current sound if playing.
         """
-        if force and self.sound_player.is_busy():
+        if force:
             self.sound_player.stop()
 
         self.sound_player.play(prompt_key)
