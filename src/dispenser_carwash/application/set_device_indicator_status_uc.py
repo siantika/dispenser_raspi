@@ -62,7 +62,7 @@ class _BlinkStatus(DeviceIndicatorStatus):
 class NetworkError(_BlinkStatus):
     """Blink pelan → error network."""
     def __init__(self, driver: IOutputBool):
-        super().__init__(driver, interval=0.5)  # 0.5 detik
+        super().__init__(driver, interval=0.8)  # 0.8 detik
 
 
 class PrinterError(_BlinkStatus):
