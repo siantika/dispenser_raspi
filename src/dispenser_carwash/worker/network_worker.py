@@ -56,17 +56,24 @@ class NetworkWorker:
         # contoh: event kirim ticket baru
         if "ticket_number" in payload:
             ticket = Ticket(**payload)
+            msg = None
             try:
                 response = await self.reg_ticket_uc.execute(ticket)
                 self.logger.info(f"response from server: {response}")
                 print(f"response from server: {response}")
                 # kalau berhasil, kasih tahu indikator FINE (optional)
-                ok_msg = QueueMessage.new(
+                if not response:
+                    msg = QueueMessage.new(
+                        topic=QueueTopic.INDICATOR,
+                        kind=MessageKind.EVENT,
+                        payload={"device_status" : DeviceStatus.NET_ERROR}
+                    )
+                msg = QueueMessage.new(
                     kind=MessageKind.EVENT,
                     topic=QueueTopic.INDICATOR,
                     payload={"device_status": DeviceStatus.FINE},
                 )
-                self.queue_to_indicator.put(ok_msg)
+                self.queue_to_indicator.put(msg)
             except Exception:
                 # kalau gagal (network/server error),
                 # kirim status NET_ERROR ke indikator
