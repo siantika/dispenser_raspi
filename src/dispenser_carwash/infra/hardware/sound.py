@@ -1,6 +1,6 @@
 import subprocess
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 import pygame
 
@@ -56,64 +56,107 @@ class PyGameSound(ISound):
 
 
 
+
 class AlsaSoundDriver(ISound):
     """
-    Implementasi termudah: pakai `aplay` via subprocess.
-    Tidak pakai pygame, jadi aman di multiprocessing worker.
+    Driver sound sederhana pakai `aplay` (ALSA).
+    – Tidak pakai pygame, aman dipakai di multiprocessing worker.
+    – File dikelola pakai pathlib.Path.
     """
 
-    def __init__(self, base_path: Path):
-        # folder tempat file suara kamu (misal: /home/pi/sounds)
+    def __init__(self, base_path: Union[str, Path]):
         self.base_path = Path(base_path)
-        self._sounds: Dict[str, Path] = {}
-        self._default: Optional[Path] = None
+        self._sounds: Dict[str, Path] = {}     # mapping: "system_ready" -> Path(.../system_ready.wav)
+        self._default: Optional[Path] = None   # optional default sound
+        self._current_proc: Optional[subprocess.Popen] = None
 
-    def load(self, file_path: str) -> None:
-        """
-        Versi paling simpel: set 1 file default.
-        Kalau interface kamu perlu banyak sound, pakai load_many() di bawah.
-        """
-        path = self.base_path / file_path
-        if not path.exists():
-            raise FileNotFoundError(f"Sound file not found: {path}")
-        self._default = path
+    # --- Implementasi dari ISound ---
 
-    def load_many(self, mapping: Dict[str, Path]) -> None:
+    def load(self, name: str, file_path: Union[str, Path]) -> None:
         """
-        Misal kamu mau mapping nama -> file:
-        { "welcome": "welcome.wav", "service_1": "svc1.wav" }
+        Load satu file suara.
+        name: key yang nanti dipakai saat play(), misal "system_ready"
+        file_path: path absolut / relatif ke base_path
         """
-        self._sounds.clear()
-        for key, filename in mapping.items():
-            path = self.base_path / filename
-            if not path.exists():
-                raise FileNotFoundError(f"Sound file not found: {path}")
-            self._sounds[key] = path
+        p = Path(file_path)
+        if not p.is_absolute():
+            p = self.base_path / p
 
-    def play(self, title:str ) -> None:
-        """
-        - Kalau pakai mapping: play("welcome")
-        - Kalau tidak pakai mapping: play() akan pakai file default dari load()
-        """
-
-        if title is not None:
-            path = self._sounds.get(title)
-        else:
-            path = self._default
-
-        if path is None:
-            # tidak ada file yang diset, diam saja
+        if not p.exists():
+            logger.error(f"🚨 Sound file not found for '{name}': {p}")
             return
 
-        # Jalankan `aplay` tanpa blocking & tanpa spam log
-        subprocess.Popen(
-            ["aplay", "-q", str(path)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        self._sounds[name] = p
+        logger.info(f"🎵 Loaded sound '{name}' -> {p}")
+
+        if self._default is None:
+            self._default = p
+
+    def load_many(self, sounds: Dict[str, Path]) -> None:
+        """
+        Load banyak file sekaligus, mapping name -> Path.
+        """
+        for name, p in sounds.items():
+            if not isinstance(p, Path):
+                p = Path(p)
+            if not p.exists():
+                logger.warning(f"⚠ Sound file not found for '{name}': {p}")
+                continue
+
+            self._sounds[name] = p
+
+        if self._default is None and self._sounds:
+            # kalau ada key "system_ready" pakai itu, kalau tidak pakai entri pertama
+            self._default = self._sounds.get(next(iter(self._sounds.keys())))
+        logger.info(f"✅ Total sounds loaded: {len(self._sounds)}")
+
+    def play(self, name: Optional[str] = None) -> None:
+        """
+        Play suara berdasarkan name. Kalau name None, pakai default.
+        Non-blocking ke proses utama (subprocess jalan sendiri).
+        """
+        if name is None:
+            path = self._default
+        else:
+            path = self._sounds.get(name)
+
+        if path is None:
+            logger.error(f"🚨 Sound key not found: {name}")
+            return
+
+        # Stop dulu kalau ada proses sebelumnya
+        self.stop()
+
+        try:
+            # Popen supaya non-blocking
+            self._current_proc = subprocess.Popen(
+                ["aplay", str(path)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            logger.info(f"▶️ Playing sound '{name or 'default'}' -> {path}")
+        except Exception as e:
+            logger.exception(f"Failed to play sound '{name}': {e}")
 
     def stop(self) -> None:
-        # Implementasi termudah: biarkan suara selesai sendiri.
-        # Kalau benar-benar perlu stop paksa:
-        subprocess.Popen(["pkill", "-f", "aplay"])
-        
+        """
+        Hentikan suara yang sedang diputar (kalau ada).
+        """
+        if self._current_proc is not None:
+            try:
+                self._current_proc.terminate()
+                self._current_proc = None
+                logger.info("⏹ Sound stopped")
+            except Exception as e:
+                logger.exception(f"Failed to stop sound: {e}")
+
+    def is_busy(self) -> bool:
+        """
+        Return True kalau masih ada proses `aplay` yang hidup.
+        Ini implementasi paling simpel untuk memenuhi kontrak ISound.
+        """
+        if self._current_proc is None:
+            return False
+
+        # poll() -> None = masih jalan, selain itu = sudah selesai
+        return self._current_proc.poll() is None
