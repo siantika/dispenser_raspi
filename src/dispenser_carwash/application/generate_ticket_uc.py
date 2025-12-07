@@ -47,7 +47,7 @@ class GenerateTicketUseCase:
     def set_initial_sequence(self, value:int):
         if not isinstance(value, int):
             raise ValueError(f"Got instance type {type(value)} instead of 'int' ")
-        self._sequence = value
+        self._sequence = value + 1 # new value is the next plus 1
 
     def execute(self, service_id: int) -> Ticket:
         """
