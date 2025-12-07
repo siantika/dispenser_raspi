@@ -3,6 +3,7 @@ import multiprocessing as mp
 import time as time_sleep
 from dataclasses import asdict, dataclass
 from enum import Enum, auto
+from queue import Empty
 
 from dispenser_carwash.application.detect_vehicle_uc import (
     DetectVehicleUseCase,
@@ -151,6 +152,14 @@ class PrimaryWorker:
 
         return None
 
+
+    def get_services_update(self):
+        try:
+            return self._from_net.get_nowait()
+        except Empty:
+            return None
+        
+        
     def run(self):
         # --- 1. Minta initial data ke NetworkWorker ---
         self._to_net.put(
@@ -208,6 +217,11 @@ class PrimaryWorker:
         last_state: State | None = None
 
         while True:
+            update_service = self.get_services_update()
+            if update_service:
+                self._usecase.select_service.set_list_of_services(update_service)
+                
+                
             cur_state: State = self._fsm.state
             if cur_state != last_state:
                 last_state = cur_state
