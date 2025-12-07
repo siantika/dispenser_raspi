@@ -8,6 +8,6 @@ class RegisterTicketUseCase:
     def __init__(self, repo:ITicketRepository):
         self.repo = repo 
         
-    async def execute(self, ticket:Ticket):
-        await self.repo.create(ticket)
+    async def execute(self, ticket:Ticket) -> Ticket:
+        return await self.repo.create(ticket)
         
