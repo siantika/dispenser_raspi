@@ -100,7 +100,7 @@ def build_app() -> AppContext:
     printer = UsbEscposDriver(vid=settings.VID,
                               pid= settings.PID)
     pygame.mixer.init()
-    sound_player = PyGameSound(pygame.mixer)
+    sound_player = PyGameSound(pygame)
     #load sounds 
     sound_files = get_sound()
     sound_player.load_many(sound_files)
