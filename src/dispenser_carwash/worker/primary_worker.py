@@ -241,6 +241,7 @@ class PrimaryWorker:
                     self._fsm.trigger(Event.LEAVE_WITHOUT_SELECTING)
                 else:
                     service = self.selecting_service()
+                    self.logger.info(f"Ini service yang dipiliih: {service}")
                     if service is not None:
                         self._selected_service = service
             
