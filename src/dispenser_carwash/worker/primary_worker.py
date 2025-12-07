@@ -23,7 +23,6 @@ from dispenser_carwash.domain.entities.ticket import Ticket
 from dispenser_carwash.utils.logger import setup_logger
 from dispenser_carwash.worker.dto.queue_dto import MessageKind, QueueMessage, QueueTopic
 
-logger = setup_logger(__name__)
 
 @dataclass
 class PrimaryUseCase:
@@ -65,6 +64,7 @@ class Event(Enum):
 
 class PrimaryFiniteStateMachine:
     def __init__(self):
+        self.logger = setup_logger("PrimaryFiniteStateMachine")
         
         self.state = State.IDLE
         """ Format:
@@ -88,11 +88,11 @@ class PrimaryFiniteStateMachine:
     def trigger(self, event: Event)-> None:
         key = (self.state, event)
         if  key not in self.transitions:
-            logger.warning(f"⚠ Not a valid transition: {self.state.name} + {event.name}")
+            self.logger.warning(f"⚠ Not a valid transition: {self.state.name} + {event.name}")
             return
             
         next_state = self.transitions[key]
-        logger.info(f"{self.state.name} --({event.name})--> {next_state.name}")
+        self.logger.info(f"{self.state.name} --({event.name})--> {next_state.name}")
         self.state = next_state
 
 
@@ -117,6 +117,7 @@ class PrimaryWorker:
              kind=MessageKind.EVENT,
              payload={"device_status":DeviceStatus.FINE}
             ))
+        self.logger = setup_logger("PrimaryWorker")
         
     def selecting_service(self) -> ServiceType:            
         if self._usecase.listen_service_1.execute():
@@ -155,7 +156,7 @@ class PrimaryWorker:
         initial_data:QueueMessage= self._from_net.get()
         
         if initial_data is None:
-            logger.error("Failed to get initial data! Please restart the device!")
+            self.logger.error("Failed to get initial data! Please restart the device!")
             #restart
             while True: ...
         
@@ -173,14 +174,14 @@ class PrimaryWorker:
                 }), True, 3)
         self._ticket_gen = GenerateTicketUseCase()
         
-        logger.info("Initial Primary Worker success")
+        self.logger.info("Initial Primary Worker success")
         self._fsm.state = State.IDLE
         cur_state:State = State.IDLE
         last_state = None 
         while True:
             if cur_state != last_state:
                 last_state = cur_state
-                logger.info(f"Current State:{cur_state.value}")
+                self.logger.info(f"Current State:{cur_state.value}")
                 
                 
             is_vehicle_present = self._usecase.detect_vehicle.execute()
@@ -250,7 +251,7 @@ class PrimaryWorker:
                         payload={
                             "device_status":DeviceStatus.PRINTER_ERROR
                         }))
-                    logger.warning("⚠ Ticket is not printed due to printer error. Please check the printer! ")
+                    self.logger.warning("⚠ Ticket is not printed due to printer error. Please check the printer! ")
                     # event it failed, we assume the print session Done and continue to next state
                     # NOTE: it should be go to state "PRINTER-ERROR" the logs it
                     self._fsm.trigger(Event.PRINT_DONE)
