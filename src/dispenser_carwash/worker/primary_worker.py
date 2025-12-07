@@ -241,8 +241,9 @@ class PrimaryWorker:
                     self._fsm.trigger(Event.LEAVE_WITHOUT_SELECTING)
                 else:
                     service = self.selecting_service()
-                    self.logger.info(f"Ini service yang dipiliih: {service}")
+                    
                     if service is not None:
+                        self.logger.info(f"Ini service yang dipiliih: {service}")
                         self._selected_service = service
             
             
@@ -251,7 +252,6 @@ class PrimaryWorker:
                 self._selected_service is not None
                 and self._fsm.state == State.SELECTING_SERVICE
             ):
-                self.logger.info(f"Sedang sibuk?:{self._usecase.play_prompt.sound_player.is_busy()}")
                 if not self._usecase.play_prompt.sound_player.is_busy():
                     self._usecase.play_prompt.stop()
                     self._fsm.trigger(Event.SERVICE_SELECTED)
