@@ -34,6 +34,7 @@ class NetworkWorker:
         self.queue_to_indicator = to_indicator
         self._poll_interval = poll_interval
         self._running = True
+        self._unsend_tickets_queue:mp.Queue = mp.Queue(50)
 
         # Logger khusus untuk worker ini
         self.logger = setup_logger("net_worker")
@@ -160,6 +161,7 @@ class NetworkWorker:
             try:
                 await self._handle_one_message(msg)
             except Exception:
+                self._unsend_tickets_queue.put(msg)
                 self.logger.exception("Unexpected error while handling message in NetworkWorker")
 
             # beri sedikit jeda supaya loop tidak terlalu agresif
@@ -169,34 +171,67 @@ class NetworkWorker:
         
     async def _check_connection_loop_and_update(self) -> None:
         """
-        Loop terpisah untuk cek konektivitas server secara periodik
-        dan menjaga update service data.
+        Loop terpisah untuk:
+        - cek konektivitas server (via get_init_data_uc.execute())
+        - update init data ke PRIMARY kalau berubah
+        - coba kirim ulang tiket yang sempat gagal (unsent_tickets_queue)
         """
-        last_init_data = None 
+        last_init_data = None
         self.logger.info("NetworkWorker health-check loop started and init data")
+
         while self._running:
+            # 1) Cek koneksi + ambil init data
             try:
                 new_init_data = await self.get_init_data_uc.execute()
+
+                # kalau ada perubahan data, kirim ke PRIMARY
                 if new_init_data != last_init_data:
-                    self.queue_to_primary.put(
-                        QueueMessage.new(
-                            topic=QueueTopic.PRIMARY,
-                            kind=MessageKind.EVENT,
-                            payload=new_init_data
-                        ), timeout=3
-                    )
-                    last_init_data = new_init_data
-                    
+                    try:
+                        self.queue_to_primary.put(
+                            QueueMessage.new(
+                                topic=QueueTopic.PRIMARY,
+                                kind=MessageKind.EVENT,
+                                payload=new_init_data,
+                            ),
+                            timeout=3,
+                        )
+                        self.logger.info("Sent updated init data to PRIMARY from health check")
+                        last_init_data = new_init_data
+                    except Exception:
+                        # ini error di queue / serialisasi, BUKAN network
+                        self.logger.exception("Failed to send init data to PRIMARY in health check")
+
+                # kalau sampai sini sukses → jaringan dianggap FINE
                 self._send_indicator_status(DeviceStatus.FINE)
+
             except Exception:
-                # kalau error → tandai sebagai network error
-                self.logger.warning("Network unreachable during health check and update init data")
+                # hanya kalau get_init_data_uc.execute() gagal (timeout, refused, dsb.)
+                self.logger.warning(
+                    "Network unreachable during health check and update init data"
+                )
                 self._send_indicator_status(DeviceStatus.NET_ERROR)
-            
-            
+                # kalau network down, langsung tidur dan lanjut loop berikutnya
+                await asyncio.sleep(10)
+                continue
+
+            # 2) Kalau networknya FINE, coba kirim ulang tiket yang tertunda
+            try:
+                while True:
+                    pending_msg: QueueMessage = self._unsend_tickets_queue.get_nowait()
+                    self.logger.info(f"Retrying unsent ticket: {pending_msg}")
+                    # ini async → WAJIB di-`await`
+                    await self._handle_one_message(pending_msg)
+            except Empty:
+                # tidak ada tiket pending, aman
+                pass
+            except Exception:
+                self.logger.exception("Error while processing unsent tickets in health check loop")
+
+            # 3) jeda sebelum iterasi berikutnya
             await asyncio.sleep(10)
-        
+
         self.logger.info("NetworkWorker health-check loop exited")
+
 
     def run(self) -> None:
         self.logger.info("NetworkWorker.run() started (asyncio event loop)")
