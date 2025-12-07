@@ -169,7 +169,7 @@ class PrimaryWorker:
             )
         )
         try:
-            initial_data: QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
+            initial_data: QueueMessage = self._from_net.get()# blocking until get init data
 
             self._last_ticket_number = initial_data.payload.get("last_ticket_number").sequence_number
             self._service_data = initial_data.payload.get("list_of_services")
@@ -185,7 +185,7 @@ class PrimaryWorker:
                     topic=QueueTopic.INDICATOR,
                     kind=MessageKind.EVENT,
                     payload={"device_status": DeviceStatus.FINE},
-                ),
+                ), timeout=Settings.TIMEOUT_PUT_QUEUE
             )
             self.logger.info("Initial Primary Worker success")
 
