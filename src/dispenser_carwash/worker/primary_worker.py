@@ -224,9 +224,9 @@ class PrimaryWorker:
 
             # GREETING
             if self._fsm.state == State.GREETING:
-                self._usecase.play_prompt.execute("welcome", True)
+                self._usecase.play_prompt.sound_player.play("welcome")
                 self._fsm.trigger(Event.GREETING_DONE)
-                while True:... #DEBUG
+                # while True:... #DEBUG
 
             # SELECTING_SERVICE
             if self._fsm.state == State.SELECTING_SERVICE and self._selected_service is None:
