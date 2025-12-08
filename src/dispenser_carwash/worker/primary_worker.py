@@ -47,6 +47,7 @@ class State(Enum):
     GENERATING_TICKET = auto()
     SENDING_DATA = auto()
     PRINTING_TICKET = auto()
+    FAILED_TO_PRINT = auto()
     GATE_OPEN = auto()
     VEHICLE_STAYING = auto()
 
@@ -60,6 +61,7 @@ class Event(Enum):
     TICKET_GENERATED = auto()
     DATA_SENT = auto()
     PRINT_DONE = auto()
+    PRINTER_ERROR = auto()
     GATE_OPENED = auto()
     VEHICLE_ENTER = auto()
 
@@ -82,6 +84,7 @@ class PrimaryFiniteStateMachine:
             (State.GENERATING_TICKET, Event.TICKET_GENERATED) : State.SENDING_DATA,
             (State.SENDING_DATA, Event.DATA_SENT) : State.PRINTING_TICKET,
             (State.PRINTING_TICKET, Event.PRINT_DONE) : State.GATE_OPEN,
+            (State.PRINTING_TICKET, Event.PRINTER_ERROR): State.PRINTER_ERROR,
             (State.GATE_OPEN, Event.GATE_OPENED): State.VEHICLE_STAYING,
             (State.VEHICLE_STAYING, Event.VEHICLE_ENTER): State.IDLE,
             
@@ -315,8 +318,7 @@ class PrimaryWorker:
                         "⚠ Ticket is not printed due to printer error. "
                         "Please check the printer!"
                     )
-                    # TODO: nanti bisa bikin state khusus PRINTER_ERROR
-                    self._fsm.trigger(Event.PRINT_DONE)
+                    self._fsm.state == State.FAILED_TO_PRINT
                 else:
                     self._to_status.put(
                         QueueMessage.new(
@@ -338,5 +340,9 @@ class PrimaryWorker:
                 if not self._usecase.detect_vehicle.execute():
                     self._fsm.trigger(Event.VEHICLE_ENTER)
 
+            if self._fsm.state == State.FAILED_TO_PRINT:
+                self._usecase.play_prompt.execute("printer_error", True)
+                self._fsm.state = State.GATE_OPEN
+                
             # Biar CPU tidak 100%
             time_sleep.sleep(0.01)
