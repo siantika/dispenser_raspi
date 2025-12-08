@@ -332,7 +332,7 @@ class PrimaryWorker:
             # GATE_OPEN
             if self._fsm.state == State.GATE_OPEN:
                 self._usecase.open_gate.open()
-                self._usecase.play_prompt.execute("taking_ticket", True)
+                self._usecase.play_prompt.execute("taking_ticket", False)
                 self._fsm.trigger(Event.GATE_OPENED)
 
             # VEHICLE_STAYING
