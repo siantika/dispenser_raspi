@@ -34,7 +34,9 @@ class NetworkWorker:
         self.queue_to_indicator = to_indicator
         self._poll_interval = poll_interval
         self._running = True
-        self._unsend_tickets_queue:mp.Queue = mp.Queue(50)
+
+        # antrian tiket yang gagal dikirim (max 50)
+        self._unsent_tickets_queue: mp.Queue = mp.Queue(50)
 
         # Logger khusus untuk worker ini
         self.logger = setup_logger("net_worker")
@@ -80,6 +82,7 @@ class NetworkWorker:
 
         # contoh: event kirim ticket baru (dari primary)
         if "ticket_number" in payload:
+            # 1) Bangun entity Ticket
             try:
                 ticket = Ticket(**payload)
             except Exception:
@@ -87,25 +90,31 @@ class NetworkWorker:
                     "Failed to construct Ticket from payload in NetworkWorker"
                 )
                 self._send_indicator_status(DeviceStatus.NET_ERROR)
-                return
+                # penting: re-raise supaya caller (_main_loop / retry loop) tahu ini gagal
+                raise
 
+            # 2) Panggil use case register_ticket_uc
             try:
                 response = await self.reg_ticket_uc.execute(ticket)
                 self.logger.info(f"Response from server (register_ticket): {response}")
                 print(f"[NetworkWorker] response from server: {response}", flush=True)
 
-                # kalau response dianggap gagal (None / False), kirim NET_ERROR
+                # kalau response dianggap gagal (None / False → mis. server error)
                 if not response:
                     self._send_indicator_status(DeviceStatus.NET_ERROR)
+                    # anggap ini kegagalan sehingga tiket perlu di-pending
+                    raise RuntimeError("register_ticket_uc returned falsy response")
                 else:
                     self._send_indicator_status(DeviceStatus.FINE)
 
             except Exception:
-                # log error lengkap, jangan ditelan
+                # log error lengkap, lalu propagate
                 self.logger.exception(
                     "Exception while calling reg_ticket_uc.execute(ticket)"
                 )
                 self._send_indicator_status(DeviceStatus.NET_ERROR)
+                # penting: re-raise supaya caller bisa masukkan ke pending queue
+                raise
 
         else:
             self.logger.warning(
@@ -154,22 +163,41 @@ class NetworkWorker:
                 await asyncio.sleep(self._poll_interval)
                 continue
             except Exception:
-                self.logger.exception("Unexpected error while reading from queue_from_primary")
+                self.logger.exception(
+                    "Unexpected error while reading from queue_from_primary"
+                )
                 await asyncio.sleep(self._poll_interval)
                 continue
 
+            # proses message
             try:
                 await self._handle_one_message(msg)
             except Exception:
-                self._unsend_tickets_queue.put(msg)
-                self.logger.info(f" Ini pending tiket: {self._unsend_tickets_queue.get_nowait()}")
-                self.logger.exception("Unexpected error while handling message in NetworkWorker")
+                # kalau sampai sini berarti benar-benar gagal (network / server / dsb)
+                self.logger.error(
+                    "Unexpected error while handling message in NetworkWorker. "
+                    "Storing to pending queue."
+                )
+                try:
+                    self._unsent_tickets_queue.put(msg, timeout=1)
+                    try:
+                        size = self._unsent_tickets_queue.qsize()
+                        self.logger.warning(
+                            f"Message stored to pending queue. Pending size: {size}"
+                        )
+                    except NotImplementedError:
+                        # di beberapa platform qsize() bisa tidak support, tidak apa
+                        self.logger.warning("Message stored to pending queue.")
+                except Exception:
+                    self.logger.exception(
+                        "Failed to store failed message to pending queue"
+                    )
 
             # beri sedikit jeda supaya loop tidak terlalu agresif
             await asyncio.sleep(self._poll_interval)
 
         self.logger.info("NetworkWorker main loop exited")
-        
+
     async def _check_connection_loop_and_update(self) -> None:
         """
         Loop terpisah untuk:
@@ -196,11 +224,15 @@ class NetworkWorker:
                             ),
                             timeout=3,
                         )
-                        self.logger.info("Sent updated init data to PRIMARY from health check")
+                        self.logger.info(
+                            "Sent updated init data to PRIMARY from health check"
+                        )
                         last_init_data = new_init_data
                     except Exception:
                         # ini error di queue / serialisasi, BUKAN network
-                        self.logger.exception("Failed to send init data to PRIMARY in health check")
+                        self.logger.error(
+                            "Failed to send init data to PRIMARY in health check"
+                        )
 
                 # kalau sampai sini sukses → jaringan dianggap FINE
                 self._send_indicator_status(DeviceStatus.FINE)
@@ -217,23 +249,49 @@ class NetworkWorker:
 
             # 2) Kalau networknya FINE, coba kirim ulang tiket yang tertunda
             try:
+                retried = 0
                 while True:
-                    pending_msg: QueueMessage = self._unsend_tickets_queue.get_nowait()
+                    try:
+                        pending_msg: QueueMessage = (
+                            self._unsent_tickets_queue.get_nowait()
+                        )
+                    except Empty:
+                        if retried == 0:
+                            self.logger.info("Tidak ada ticket ter-pending!")
+                        else:
+                            self.logger.info(
+                                f"Selesai retry {retried} pending ticket(s)."
+                            )
+                        break
+
                     self.logger.info(f"Retrying unsent ticket: {pending_msg}")
-                    # ini async → WAJIB di-`await`
-                    await self._handle_one_message(pending_msg)
-            except Empty:
-                # tidak ada tiket pending, aman
-                self.logger.info("Tidak ada ticket ter-pending!")
-                pass
+                    try:
+                        # kalau di sini gagal lagi, kita masukkan balik ke antrian
+                        await self._handle_one_message(pending_msg)
+                        retried += 1
+                    except Exception:
+                        self.logger.exception(
+                            "Failed to process pending ticket during retry. "
+                            "Putting message back to pending queue."
+                        )
+                        try:
+                            self._unsent_tickets_queue.put(pending_msg, timeout=1)
+                        except Exception:
+                            self.logger.exception(
+                                "Failed to re-store pending ticket back to queue"
+                            )
+                        # break supaya tidak spin terus dengan kondisi error
+                        break
+
             except Exception:
-                self.logger.exception("Error while processing unsent tickets in health check loop")
+                self.logger.error(
+                    "Error while processing unsent tickets in health check loop"
+                )
 
             # 3) jeda sebelum iterasi berikutnya
             await asyncio.sleep(10)
 
         self.logger.info("NetworkWorker health-check loop exited")
-
 
     def run(self) -> None:
         self.logger.info("NetworkWorker.run() started (asyncio event loop)")
@@ -244,7 +302,7 @@ class NetworkWorker:
         # Jalankan main loop + health check dalam 2 task paralel
         tasks = [
             loop.create_task(self._main_loop()),
-            loop.create_task(self._check_connection_loop_and_update())
+            loop.create_task(self._check_connection_loop_and_update()),
         ]
 
         loop.run_until_complete(asyncio.gather(*tasks))
