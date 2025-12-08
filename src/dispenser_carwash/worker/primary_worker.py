@@ -154,7 +154,7 @@ class PrimaryWorker:
         return None
 
 
-    def get_services_update(self):
+    def get_services_update(self)->Optional[QueueMessage]:
         try:
             return self._from_net.get_nowait()
         except Empty:
@@ -210,9 +210,17 @@ class PrimaryWorker:
 
         while True:
             update_service = self.get_services_update()
-            if update_service:
-                self._usecase.select_service.set_list_of_services(update_service)
-                
+            if update_service is not None:
+                payload = update_service.payload or {}
+                new_payload_of_service = payload.get("list_of_services")
+
+            if new_payload_of_service:
+                self._usecase.select_service.set_list_of_services(new_payload_of_service)
+                self.logger.info(
+                    "Updated list of services: %s",
+                    new_payload_of_service,
+                )
+
                 
             cur_state: State = self._fsm.state
             if cur_state != last_state:
