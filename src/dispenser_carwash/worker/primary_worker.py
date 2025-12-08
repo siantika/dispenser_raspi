@@ -343,7 +343,7 @@ class PrimaryWorker:
             # FAILED TO PRINT
             if self._fsm.state == State.FAILED_TO_PRINT:
                 self._usecase.play_prompt.execute("printer_error", True)
-                time_sleep.sleep(3) ## blocking
+                time_sleep.sleep(5) ## blocking
             
                 self._fsm.state = State.GATE_OPEN
             
