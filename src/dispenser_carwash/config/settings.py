@@ -40,7 +40,7 @@ class Settings:
             "service_4": 26,
         }
         # switch pin for testing
-        GATE_CONTROLLER_PIN = 20 
+        GATE_CONTROLLER_PIN = 21
         LED_PINS = 16
 
     class Server:
