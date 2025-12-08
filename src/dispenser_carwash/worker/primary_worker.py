@@ -341,11 +341,12 @@ class PrimaryWorker:
                     self._fsm.trigger(Event.VEHICLE_ENTER)
 
             # FAILED TO PRINT
+            """ We don't allow the customer to enter, so we go back to vehicle staying"""
             if self._fsm.state == State.FAILED_TO_PRINT:
                 self._usecase.play_prompt.execute("printer_error", True)
                 time_sleep.sleep(5) ## blocking
             
-                self._fsm.state = State.GATE_OPEN
+                self._fsm.state = State.VEHICLE_STAYING
             
             # Biar CPU tidak 100%
             time_sleep.sleep(0.01)
