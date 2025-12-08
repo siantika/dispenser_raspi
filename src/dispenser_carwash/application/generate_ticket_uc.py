@@ -1,4 +1,5 @@
-from datetime import UTC, datetime  # Python 3.11+
+from datetime import UTC, datetime
+from pathlib import Path  # Python 3.11+
 
 from dispenser_carwash.domain.entities.ticket import Ticket
 
@@ -37,7 +38,24 @@ class TicketEan13Generator:
         checksum = TicketEan13Generator._checksum_ean_13(raw_number)
         return f"{raw_number}{checksum}"
 
+# save  and load last ticket number in local
+SEQ_FILE = Path(__file__).resolve().parent.parent.parent / "last_ticket_seq.txt"
 
+
+def load_sequence() -> int:
+    try:
+        return int(SEQ_FILE.read_text().strip())
+    except (FileNotFoundError, ValueError):
+        return 0
+
+
+def save_sequence(value: int) -> None:
+    # save aman walau power loss (atomic write)
+    tmp = SEQ_FILE.with_suffix(".tmp")
+    tmp.write_text(str(value))
+    tmp.replace(SEQ_FILE)
+    
+    
 
 
 class GenerateTicketUseCase:
@@ -47,12 +65,17 @@ class GenerateTicketUseCase:
     def set_initial_sequence(self, value:int):
         if not isinstance(value, int):
             raise ValueError(f"Got instance type {type(value)} instead of 'int' ")
-        self._sequence = value + 1 # new value is the next plus 1
+        
+        local_seq = load_sequence()
+        #compare local and server
+        start_seq = max(value, local_seq)
+        self._sequence = start_seq + 1 # new value is the next plus 1
 
     def execute(self, service_id: int) -> Ticket:
         """
         Generate next ticket entity with EAN-13 ticket number for a given service type.
         """
+        save_sequence(self._sequence)# save to local
         gen_ticket_number = TicketEan13Generator.create_ean_ticket(
             service_id, self._sequence
         )
