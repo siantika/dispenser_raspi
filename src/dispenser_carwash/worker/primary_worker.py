@@ -136,20 +136,20 @@ class PrimaryWorker:
     def selecting_service(self) -> ServiceType | None:
         """Cek tombol service mana yang ditekan, None kalau belum ada."""
         if self._usecase.listen_service_1.execute():
-            self._usecase.play_prompt.execute("service_basic", True)
-            return self._usecase.select_service.execute("BASIC")
+            self._usecase.play_prompt.execute("service_1", True)
+            return self._usecase.select_service.execute(1)
 
         if self._usecase.listen_service_2.execute():
-            self._usecase.play_prompt.execute("service_complete", True)
-            return self._usecase.select_service.execute("COMPLETE")
+            self._usecase.play_prompt.execute("service_2", True)
+            return self._usecase.select_service.execute(2)
 
         if self._usecase.listen_service_3.execute():
-            self._usecase.play_prompt.execute("service_perfect", True)
-            return self._usecase.select_service.execute("PERFECT")
+            self._usecase.play_prompt.execute("service_3", True)
+            return self._usecase.select_service.execute(3)
 
         if self._usecase.listen_service_4.execute():
-            self._usecase.play_prompt.execute("service_cuci_motor", True)
-            return self._usecase.select_service.execute("CUCI_MOTOR")
+            self._usecase.play_prompt.execute("service_4", True)
+            return self._usecase.select_service.execute(4)
 
         return None
 
@@ -249,7 +249,7 @@ class PrimaryWorker:
                     service = self.selecting_service()
                     
                     if service is not None:
-                        self.logger.info(f"Ini service yang dipiliih: {service}")
+                        self.logger.info(f"Ini service yang dipilih: {service}")
                         self._selected_service = service
             
             
