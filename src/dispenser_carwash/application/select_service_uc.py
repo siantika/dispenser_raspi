@@ -17,6 +17,6 @@ class SelectServiceUseCase:
             logger.info(f" service with id:{service_id} is empty/not registered, check the init data")
             return 
         return next(
-            (item for item in self.list_of_services if item.name == service_id),
+            (item for item in self.list_of_services if item.id == service_id),
             None
         )
