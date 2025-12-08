@@ -14,7 +14,6 @@ from dispenser_carwash.domain.interfaces.hardware.i_output_bool import IOutputBo
 from dispenser_carwash.utils.logger import setup_logger
 from dispenser_carwash.worker.dto.queue_dto import MessageKind, QueueMessage
 
-logger = setup_logger("indicator worker")
 
 class IndicatorWorker:
     def __init__(
@@ -29,7 +28,8 @@ class IndicatorWorker:
         self._status: DeviceIndicatorStatus = ShutDown(driver)
         self._poll_interval = poll_interval
         self._running = True
-        logger.info("Indicator worker successfully initialization")
+        self.logger = setup_logger("indicator worker")
+        self.logger.info("Indicator worker successfully initialization")
 
     def set_status(self, status: DeviceIndicatorStatus):
         self._status = status
@@ -48,6 +48,7 @@ class IndicatorWorker:
             return
 
         if dev_status == DeviceStatus.FINE:
+            self.logger.info("Status FINE")
             self.set_status(Fine(self.driver))
         elif dev_status == DeviceStatus.NET_ERROR:
             self.set_status(NetworkError(self.driver))
