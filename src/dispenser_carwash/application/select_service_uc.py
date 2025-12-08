@@ -12,11 +12,11 @@ class SelectServiceUseCase:
     def set_list_of_services(self, value:List[ServiceType]):
         self.list_of_services = value
     
-    def execute(self, service_name: str) -> Optional[ServiceType]:
-        if service_name is None:
-            logger.info(f" service with name:{service_name} is empty, check the init data")
+    def execute(self, service_id: str) -> Optional[ServiceType]:
+        if service_id is None:
+            logger.info(f" service with id:{service_id} is empty/not registered, check the init data")
             return 
         return next(
-            (item for item in self.list_of_services if item.name == service_name),
+            (item for item in self.list_of_services if item.name == service_id),
             None
         )
