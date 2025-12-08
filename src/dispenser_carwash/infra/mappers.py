@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -6,6 +7,15 @@ from dispenser_carwash.domain.entities.service_type import ServiceType
 from dispenser_carwash.domain.entities.ticket import Ticket
 
 
+@dataclass
+class TicketResponseDTO:
+    id:int 
+    ticket_number:str 
+    service_name:str 
+    entry_time:datetime
+    
+    
+    
 class TicketNetworkMapper:
 
     @staticmethod
@@ -15,7 +25,7 @@ class TicketNetworkMapper:
         """
         return {
             "ticket_number": ticket.ticket_number,
-            "service_name": ticket.service_type_id,
+            "service_type_id": ticket.service_type_id,
             "entry_time": ticket.entry_time,
         }
 
@@ -24,10 +34,10 @@ class TicketNetworkMapper:
         """
         Convert JSON response -> Domain Ticket
         """
-        return Ticket(
+        return TicketResponseDTO(
             id=data.get("id"),
             ticket_number=data["ticket_number"],
-            service_type_id=data["service_type_id"],
+            service_name=data["service_name"],
             entry_time=datetime.fromisoformat(data["entry_time"]),
         )
 
