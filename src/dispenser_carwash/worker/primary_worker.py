@@ -207,19 +207,19 @@ class PrimaryWorker:
         self._initialize_init_data()
         self._fsm.state = State.IDLE
         last_state: Optional[State] = None
-
+        new_payload_of_service = None 
         while True:
             update_service = self.get_services_update()
             if update_service is not None:
                 payload = update_service.payload or {}
                 new_payload_of_service = payload.get("list_of_services")
 
-            if new_payload_of_service:
-                self._usecase.select_service.set_list_of_services(new_payload_of_service)
-                self.logger.info(
-                    "Updated list of services: %s",
-                    new_payload_of_service,
-                )
+                if new_payload_of_service:
+                    self._usecase.select_service.set_list_of_services(new_payload_of_service)
+                    self.logger.info(
+                        "Updated list of services: %s",
+                        new_payload_of_service,
+                    )
 
                 
             cur_state: State = self._fsm.state
