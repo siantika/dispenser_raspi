@@ -318,7 +318,7 @@ class PrimaryWorker:
                         "⚠ Ticket is not printed due to printer error. "
                         "Please check the printer!"
                     )
-                    self._fsm.state == State.FAILED_TO_PRINT
+                    self._fsm.trigger(Event.PRINTER_ERROR)
                 else:
                     self._to_status.put(
                         QueueMessage.new(
