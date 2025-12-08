@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from pathlib import Path  # Python 3.11+
 
 from dispenser_carwash.domain.entities.ticket import Ticket
+from dispenser_carwash.utils.logger import setup_logger
 
 
 class TicketEan13Generator:
@@ -56,19 +57,19 @@ def save_sequence(value: int) -> None:
     tmp.replace(SEQ_FILE)
     
     
-
-
 class GenerateTicketUseCase:
     def __init__(self):
         self._sequence = 0
+        self.logger = setup_logger("Generate Ticket")
         
     def set_initial_sequence(self, value:int):
         if not isinstance(value, int):
             raise ValueError(f"Got instance type {type(value)} instead of 'int' ")
         
         local_seq = load_sequence()
-        #compare local and server
+        #compare last ticket number in  local and server
         start_seq = max(value, local_seq)
+        self.logger.info(f"Actual last ticket number: {start_seq}")
         self._sequence = start_seq + 1 # new value is the next plus 1
 
     def execute(self, service_id: int) -> Ticket:
