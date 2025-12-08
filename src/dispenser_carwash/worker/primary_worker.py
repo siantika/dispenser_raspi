@@ -84,7 +84,7 @@ class PrimaryFiniteStateMachine:
             (State.GENERATING_TICKET, Event.TICKET_GENERATED) : State.SENDING_DATA,
             (State.SENDING_DATA, Event.DATA_SENT) : State.PRINTING_TICKET,
             (State.PRINTING_TICKET, Event.PRINT_DONE) : State.GATE_OPEN,
-            (State.PRINTING_TICKET, Event.PRINTER_ERROR): State.PRINTER_ERROR,
+            (State.PRINTING_TICKET, Event.PRINTER_ERROR): State.FAILED_TO_PRINT,
             (State.GATE_OPEN, Event.GATE_OPENED): State.VEHICLE_STAYING,
             (State.VEHICLE_STAYING, Event.VEHICLE_ENTER): State.IDLE,
             
@@ -340,6 +340,7 @@ class PrimaryWorker:
                 if not self._usecase.detect_vehicle.execute():
                     self._fsm.trigger(Event.VEHICLE_ENTER)
 
+            # FAILED TO PRINT
             if self._fsm.state == State.FAILED_TO_PRINT:
                 self._usecase.play_prompt.execute("printer_error", True)
                 self._fsm.state = State.GATE_OPEN
