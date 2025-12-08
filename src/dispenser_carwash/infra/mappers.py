@@ -15,7 +15,7 @@ class TicketNetworkMapper:
         """
         return {
             "ticket_number": ticket.ticket_number,
-            "service_type_id": ticket.service_type_id,
+            "service_name": ticket.service_type_id,
             "entry_time": ticket.entry_time,
         }
 
