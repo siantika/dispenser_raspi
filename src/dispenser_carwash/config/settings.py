@@ -41,7 +41,7 @@ class Settings:
         }
         # switch pin for testing
         GATE_CONTROLLER_PIN = 21
-        LED_PINS = 16
+        LED_PINS = 20
 
     class Server:
         BASE_URL = "http://192.168.100.29:8000/api/v1"
