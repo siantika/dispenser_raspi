@@ -162,6 +162,7 @@ class NetworkWorker:
                 await self._handle_one_message(msg)
             except Exception:
                 self._unsend_tickets_queue.put(msg)
+                self.logger.info(f" Ini pending tiket: {self._unsend_tickets_queue.get_nowait()}")
                 self.logger.exception("Unexpected error while handling message in NetworkWorker")
 
             # beri sedikit jeda supaya loop tidak terlalu agresif
@@ -223,6 +224,7 @@ class NetworkWorker:
                     await self._handle_one_message(pending_msg)
             except Empty:
                 # tidak ada tiket pending, aman
+                self.logger.info("Tidak ada ticket ter-pending!")
                 pass
             except Exception:
                 self.logger.exception("Error while processing unsent tickets in health check loop")
