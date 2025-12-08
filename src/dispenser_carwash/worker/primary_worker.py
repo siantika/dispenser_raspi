@@ -208,6 +208,9 @@ class PrimaryWorker:
     def run(self):
        
         self._initialize_init_data()
+        self._usecase.play_prompt.execute("system_ready")
+        time_sleep.sleep(2) # buffer for sound 
+        
         self._fsm.state = State.IDLE
         last_state: Optional[State] = None
         new_payload_of_service = None 
