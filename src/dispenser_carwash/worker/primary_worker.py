@@ -343,10 +343,8 @@ class PrimaryWorker:
             # FAILED TO PRINT
             if self._fsm.state == State.FAILED_TO_PRINT:
                 self._usecase.play_prompt.execute("printer_error", True)
+                time_sleep.sleep(3) ## blocking
             
-            if not  self._usecase.play_prompt.sound_player.is_busy() and \
-                self._fsm.state == State.FAILED_TO_PRINT:
-                
                 self._fsm.state = State.GATE_OPEN
             
             # Biar CPU tidak 100%
