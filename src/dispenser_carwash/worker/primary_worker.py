@@ -298,13 +298,13 @@ class PrimaryWorker:
             est_min = payload["estimated_min"]
             est_max = payload["estimated_max"]
             per_car_minutes = payload["per_car_minutes"]
-            
-            estimated = self._estimate_waiting_time(queue_in_front, est_min, est_max, per_car_minutes)
-            
+        
         else:
             # ini mode off jika mode == None 
             pass 
         
+        estimated = self._estimate_waiting_time(queue_in_front, est_min, est_max, per_car_minutes)
+            
         if mode is None:
             self._play_till_finish("new_welcome")
             self._play_till_finish("saat_ini")
