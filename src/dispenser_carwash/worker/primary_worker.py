@@ -292,7 +292,7 @@ class PrimaryWorker:
                 "queue_in_front":4,
                 "est_min" : 22,
                 "est_max": 40,
-                "per_car_minutes": None 
+                "per_car_minutes": 15 
             }
         )
         
@@ -306,8 +306,8 @@ class PrimaryWorker:
             
         elif mode == "AUTO":
             queue_in_front =  payload["queue_in_front"]
-            est_min = payload["estimated_min"]
-            est_max = payload["estimated_max"]
+            est_min = payload["est_min"]
+            est_max = payload["est_max"]
             per_car_minutes = payload["per_car_minutes"]
         
         else:
