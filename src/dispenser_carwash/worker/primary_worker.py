@@ -260,11 +260,11 @@ class PrimaryWorker:
             {"cmd": "GET_QUEUE_VEHICLE_INFO"}
         )
         payload = None 
-        queue_in_front = 4# ujicoba, seharusnya 0
-        est_min = 1 # idem
-        est_max = 2 # Harusnya 0
+        queue_in_front = 0
+        est_min = 0
+        est_max = 0
         per_car_minutes = None 
-        mode = "MANUAL" # harusnya NONE 
+        mode = None
         
         # try:
         #     payload:QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
@@ -272,6 +272,19 @@ class PrimaryWorker:
         #     mode = payload["mode"]
         # except Empty:
         #     pass 
+        queue_f_net = QueueMessage.new(
+            QueueTopic.PRIMARY,
+            MessageKind.RESPONSE,
+            payload = {
+                "mode": "MANUAL",
+                "queue_in_front":4,
+                "est_min" : 22,
+                "est_max": 40,
+                "per_car_minutes": None 
+            }
+        )
+        
+        payload = queue_f_net.payload
         
         if mode == "MANUAL":
             queue_in_front =  payload["queue_in_front"]
