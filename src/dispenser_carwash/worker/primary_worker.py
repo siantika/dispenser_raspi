@@ -318,8 +318,9 @@ class PrimaryWorker:
         estimated = self._estimate_waiting_time(mode,
                                                 queue_in_front, est_min, est_max, per_car_minutes)
             
+        
+        self._play_till_finish("new_welcome")
         if mode is not None:
-            self._play_till_finish("new_welcome")
             self._play_till_finish("saat_ini")
             time_sleep.sleep(0.4)
             self._play_till_finish(str(estimated.get("queue_in_front")))
@@ -331,9 +332,9 @@ class PrimaryWorker:
             time_sleep.sleep(0.4)
             self._play_till_finish(str(estimated.get(est_max)))
             self._play_till_finish("menit")
-            time_sleep.sleep(0.8)
-            self._play_till_finish("pilih_jenis_cuci")        
-          
+        time_sleep.sleep(0.8)
+        self._play_till_finish("pilih_jenis_cuci")        
+        
     
     def run(self):
        
