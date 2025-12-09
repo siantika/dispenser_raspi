@@ -4,7 +4,7 @@ import time as time_sleep
 from dataclasses import asdict, dataclass
 from enum import Enum, auto
 from queue import Empty
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from dispenser_carwash.application.detect_vehicle_uc import (
     DetectVehicleUseCase,
@@ -203,7 +203,110 @@ class PrimaryWorker:
                     payload={"device_status": DeviceStatus.NET_ERROR},
                 )
             )
+    """
+    memutar selamat datang dan jumlah antrian dan estimasi dipanggil.
+    update setiap 10 detik di net, di sini kirim payload request aja
+    args:
+    jumlah antrian, optional estimasi waktu antrian (min_max)
+    bahkan bisa OFF juga
+    Response
+            {
+            "mode": "AUTO",
+            "per_car_minutes": 7 | None 
+            "est_min": 2
+            "est_max": 5
+            }
+    """
+    def _play_till_finish(self, title: str):
+        try:
+            self._usecase.play_prompt.execute(title)
+            while self._usecase.play_prompt.sound_player.is_busy():
+                time_sleep.sleep(0.05)
+        except Exception as e:
+            self.logger.error(f"Sound error: {e}")
+            
+    
 
+    def _estimate_waiting_time(
+        self,
+        queue_in_front: int,
+        est_min_const: int,
+        est_max_const: int,
+        time_per_car: int
+    ) -> Dict[str, Any]:
+        # in minutes
+                
+        estimated = queue_in_front * time_per_car
+        if estimated < 0:
+            raise ValueError(f"Estimated should be postitive num. Queue val: {queue_in_front} and Time per car val: {time_per_car}")
+            
+        est_min = estimated - est_min_const
+        est_max = estimated + est_max_const
+        
+        if est_max < 1 or est_min < 1:
+            est_min, est_max = 0, 0
+         
+        
+        return {
+            "queue_in_front": queue_in_front,
+            "estimated_min": est_min,
+            "estimated_max": est_max,
+        }
+        
+    def welcome(self):
+        self._to_net.put_nowait= QueueMessage.new(
+            QueueTopic.NETWORK,
+            MessageKind.COMMAND,
+            {"cmd": "GET_QUEUE_VEHICLE_INFO"}
+        )
+        payload = None 
+        queue_in_front = 4# ujicoba, seharusnya 0
+        est_min = 1 # idem
+        est_max = 2 # Harusnya 0
+        per_car_minutes = None 
+        mode = "MANUAL" # harusnya NONE 
+        
+        try:
+            payload:QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
+            payload = payload.payload
+            mode = payload["mode"]
+        except Empty:
+            pass 
+        
+        if mode == "MANUAL":
+            queue_in_front =  payload["queue_in_front"]
+            est_min = payload["est_min"]
+            est_max = payload["est_max"]
+            per_car_minutes = None 
+            
+        elif mode == "AUTO":
+            queue_in_front =  payload["queue_in_front"]
+            est_min = payload["estimated_min"]
+            est_max = payload["estimated_max"]
+            per_car_minutes = payload["per_car_minutes"]
+            
+            estimated = self._estimate_waiting_time(queue_in_front, est_min, est_max, per_car_minutes)
+            
+        else:
+            # ini mode off jika mode == None 
+            pass 
+        
+        if mode is None:
+            self._play_till_finish("new_welcome")
+            self._play_till_finish("saat_ini")
+            time_sleep.sleep(0.4)
+            self._play_till_finish(str(estimated.get("queue_in_front")))
+            self._play_till_finish("kendaraan_dalam_antr")
+            self._play_till_finish("estimasi_waktu")
+            time_sleep.sleep(0.4)
+            self._play_till_finish(str(estimated.get(est_min)))
+            self._play_till_finish("hingga")
+            time_sleep.sleep(0.4)
+            self._play_till_finish(str(estimated.get(est_max)))
+            self._play_till_finish("menit")
+            time_sleep.sleep(0.8)
+            self._play_till_finish("pilih_jenis_cuci")        
+          
     
     def run(self):
        
@@ -249,7 +352,8 @@ class PrimaryWorker:
 
             # GREETING
             if self._fsm.state == State.GREETING:
-                self._usecase.play_prompt.execute("welcome")
+                # self._usecase.play_prompt.execute("welcome")
+                self.welcome() # NEW
                 self.logger.info(f"Nilai driver sound: {self._usecase.play_prompt.sound_player}")
                 self._fsm.trigger(Event.GREETING_DONE)
               
