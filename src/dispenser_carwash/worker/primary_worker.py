@@ -268,7 +268,7 @@ class PrimaryWorker:
         self._to_net.put_nowait(QueueMessage.new(
             QueueTopic.NETWORK,
             MessageKind.COMMAND,
-            {"cmd": "GET_QUEUE_VEHICLE_INFO"}
+            {"command": "GET_QUEUE_VEHICLE_INFO"}
         ))
         self.logger.info("Mengirim GET QUEUE VEHICLE command to net work")
         
