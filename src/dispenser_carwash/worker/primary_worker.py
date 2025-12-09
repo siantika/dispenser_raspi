@@ -266,12 +266,12 @@ class PrimaryWorker:
         per_car_minutes = None 
         mode = "MANUAL" # harusnya NONE 
         
-        try:
-            payload:QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
-            payload = payload.payload
-            mode = payload["mode"]
-        except Empty:
-            pass 
+        # try:
+        #     payload:QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
+        #     payload = payload.payload
+        #     mode = payload["mode"]
+        # except Empty:
+        #     pass 
         
         if mode == "MANUAL":
             queue_in_front =  payload["queue_in_front"]
