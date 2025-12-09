@@ -297,6 +297,7 @@ class PrimaryWorker:
         )
         
         payload = queue_f_net.payload
+        mode = payload["mode"]
         
         if mode == "MANUAL":
             queue_in_front =  payload["queue_in_front"]
