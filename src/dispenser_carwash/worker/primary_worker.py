@@ -260,8 +260,8 @@ class PrimaryWorker:
         
         return {
             "queue_in_front": queue_in_front,
-            "estimated_min": est_min,
-            "estimated_max": est_max,
+            "est_min": est_min,
+            "est_max": est_max,
         }
         
     def welcome(self):
