@@ -294,7 +294,7 @@ class PrimaryWorker:
         msg = QueueMessage.new(
             topic=QueueTopic.NETWORK,
             kind=MessageKind.COMMAND,
-            payload={"cmd": "GET_QUEUE_VEHICLE_INFO"},
+            payload={"command": "GET_QUEUE_VEHICLE_INFO"},
         )
         self._to_net.put_nowait(msg)
         self.logger.info("Mengirim GET_QUEUE_VEHICLE_INFO command ke NetworkWorker")
@@ -417,9 +417,7 @@ class PrimaryWorker:
                     queue_info.get("mode"),
                     queue_info.get("queue_in_front"),
                     queue_info.get("est_min"),
-                    queue_info.get("est_max"),
-                    queue_info.get("time_per_vehicle"),
-                    
+                    queue_info.get("est_max"),                    
                 )
               
 
