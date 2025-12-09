@@ -265,6 +265,7 @@ class PrimaryWorker:
         est_max = 0
         per_car_minutes = None 
         mode = None
+        estimated = None 
         
         # try:
         #     payload:QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
