@@ -5,6 +5,9 @@ import multiprocessing as mp
 from queue import Empty
 from typing import Optional
 
+from dispenser_carwash.application.fetch_vehicle_queue_info_uc import (
+    FetchVehicleQueueInfoUseCase,
+)
 from dispenser_carwash.application.get_initial_data import GetInitialDataUseCase
 from dispenser_carwash.application.register_ticket_uc import RegisterTicketUseCase
 from dispenser_carwash.domain.entities.device import DeviceStatus
@@ -22,6 +25,7 @@ class NetworkWorker:
         self,
         register_ticket_uc: RegisterTicketUseCase,
         get_initial_data_uc: GetInitialDataUseCase,
+        fetch_vehicle_queue_uc: FetchVehicleQueueInfoUseCase,
         to_primary: mp.Queue,
         from_primary: mp.Queue,
         to_indicator: mp.Queue,
@@ -29,6 +33,7 @@ class NetworkWorker:
     ):
         self.reg_ticket_uc = register_ticket_uc
         self.get_init_data_uc = get_initial_data_uc
+        self.fetch_vehicle_queue_uc = fetch_vehicle_queue_uc
         self.queue_to_primary = to_primary
         self.queue_from_primary = from_primary
         self.queue_to_indicator = to_indicator
@@ -144,6 +149,21 @@ class NetworkWorker:
                 self.logger.info("Initial data sent back to PRIMARY")
             except Exception:
                 self.logger.exception("Failed to execute GET_INITIAL_DATA command")
+        
+        elif cmd == "GET_QUEUE_VEHICLE_INFO":
+            try:
+                data = await self.fetch_vehicle_queue_uc.execute()
+                self.logger.info("GET_QUEUE_VEHICLE_INFO executed successfully")
+                
+                resp = QueueMessage.new(
+                    kind=MessageKind.RESPONSE,
+                    topic=QueueTopic.PRIMARY,
+                    payload=data,
+                )
+                self.queue_to_primary.put(resp, timeout=3)
+                self.logger.info("vehicle queue data sent back to PRIMARY")
+            except Exception:
+                self.logger.exception("Failed to execute GET_QUEUE_VEHICLE_INFO command")
 
         else:
             self.logger.warning(f"Unknown command for NetworkWorker: {cmd}")

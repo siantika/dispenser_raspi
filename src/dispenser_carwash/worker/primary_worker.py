@@ -233,7 +233,7 @@ class PrimaryWorker:
         queue_in_front: int,
         est_min_const: int,
         est_max_const: int,
-        time_per_car: int
+        time_per_vehicle: int
     ) -> Dict[str, Any]:
         # in minutes
         estimated = None 
@@ -242,10 +242,10 @@ class PrimaryWorker:
         
         
         if mode == "AUTO":
-            estimated = queue_in_front * time_per_car
+            estimated = queue_in_front * time_per_vehicle
         
             if estimated < 0:
-                raise ValueError(f"Estimated should be postitive num. Queue val: {queue_in_front} and Time per car val: {time_per_car}")
+                raise ValueError(f"Estimated should be postitive num. Queue val: {queue_in_front} and Time per car val: {time_per_vehicle}")
                 
             est_min = estimated - est_min_const
             est_max = estimated + est_max_const
@@ -278,12 +278,13 @@ class PrimaryWorker:
         mode = None
         estimated = None 
         
-        # try:
-        #     payload:QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
-        #     payload = payload.payload
-        #     mode = payload["mode"]
-        # except Empty:
-        #     pass 
+        try:
+            payload:QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
+            payload = payload.payload
+            mode = payload["mode"]
+        except Empty:
+            pass 
+        
         queue_f_net = QueueMessage.new(
             QueueTopic.PRIMARY,
             MessageKind.RESPONSE,

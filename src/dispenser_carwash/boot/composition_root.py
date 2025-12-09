@@ -6,6 +6,9 @@ from typing import Dict
 from gpiozero import LED, Button
 
 from dispenser_carwash.application.detect_vehicle_uc import DetectVehicleUseCase
+from dispenser_carwash.application.fetch_vehicle_queue_info_uc import (
+    FetchVehicleQueueInfoUseCase,
+)
 from dispenser_carwash.application.generate_ticket_uc import GenerateTicketUseCase
 from dispenser_carwash.application.get_initial_data import GetInitialDataUseCase
 from dispenser_carwash.application.listen_to_service_uc import ListenToServiceUseCase
@@ -25,6 +28,9 @@ from dispenser_carwash.infra.repositories.last_ticket_number_repo import (
 )
 from dispenser_carwash.infra.repositories.service_type_repo import ServiceTypeRepoHttp
 from dispenser_carwash.infra.repositories.ticket_repo import TicketRepositoryHttp
+from dispenser_carwash.infra.repositories.vehicle_queue_info import (
+    VehicleQueueInfoRepository,
+)
 from dispenser_carwash.utils.logger import setup_logger
 from dispenser_carwash.worker.indicator_worker import IndicatorWorker
 from dispenser_carwash.worker.network_worker import NetworkWorker
@@ -123,6 +129,7 @@ def build_app() -> AppContext:
     ticket_repo = TicketRepositoryHttp(http_client)
     service_type_repo = ServiceTypeRepoHttp(http_client)
     last_ticket_number_repo =LastTicketNumberRepository(http_client)
+    vehicle_queue_info_repo = VehicleQueueInfoRepository(http_client)
    
     # --- Use cases ---
     detect_vehicle_uc = DetectVehicleUseCase(loop_sensor)
@@ -140,6 +147,8 @@ def build_app() -> AppContext:
     get_initial_data_uc = GetInitialDataUseCase(last_ticket_number_repo,
                                                 service_type_repo)
     register_ticket_uc = RegisterTicketUseCase(ticket_repo)
+    
+    get_vehicle_queue_uc = FetchVehicleQueueInfoUseCase(vehicle_queue_info_repo)
 
     # --- Facade usecases utk primary ---
     facade_primary_usecases = PrimaryUseCase(
@@ -172,6 +181,7 @@ def build_app() -> AppContext:
     network_worker = NetworkWorker(
         register_ticket_uc=register_ticket_uc,
         get_initial_data_uc=get_initial_data_uc,
+        fetch_vehicle_queue_uc=get_vehicle_queue_uc,
         to_primary=q_network_to_primary,
         from_primary=q_primary_to_network,
         to_indicator=q_to_indicator,

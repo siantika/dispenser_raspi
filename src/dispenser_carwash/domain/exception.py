@@ -32,3 +32,9 @@ class PrinterUnavailable(Exception):
 
 class LastTicketNumberRepositoryError(RepositoryError):
     pass 
+
+class VehicleQueueInfoRepositoryError(RepositoryError):
+    pass 
+
+class VehicleQueueNotExist(UseCaseError):
+    pass 

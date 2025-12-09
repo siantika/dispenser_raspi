@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 from dispenser_carwash.domain.entities.last_ticket_number import LastTicketNumber
 from dispenser_carwash.domain.entities.service_type import ServiceType
 from dispenser_carwash.domain.entities.ticket import Ticket
+from dispenser_carwash.domain.entities.vehicle_queue import VehicleQueueInfo
 
 
 @dataclass
@@ -30,7 +31,7 @@ class TicketNetworkMapper:
         }
 
     @staticmethod
-    def from_response(data: dict) -> Ticket:
+    def from_response(data:  Dict[str, Any]) -> Ticket:
         """
         Convert JSON response -> Domain Ticket
         """
@@ -56,9 +57,23 @@ class ServiceTypeNetworkMapper:
             for item in data
         ]
 
+# class VehicleQueueInfoMapper:
+#     @staticmethod
+#     def from_response_estimation(data: Dict[str, Any]) -> VehicleQueueInfo:
+#         return VehicleQueueInfo(
+#             est_min= data.get("est_min"),
+#             est_max= data.get("est_max")
+#         )
+#     @staticmethod
+#     def from_response_vehicle_queue(data: Dict[str, Any]) -> VehicleQueueInfo:
+#         return VehicleQueueInfo(
+#             queue_in_front=data.get("queue_in_front"),
+#             est_min= data.get("est_min"),
+#             est_max= data.get("est_max")
+#         )     
 
 class LastTicketNumberNetworkMapper:
-    def from_response(data: dict) -> LastTicketNumber:
+    def from_response(data:  Dict[str, Any]) -> LastTicketNumber:
         return LastTicketNumber(
             sequence_number=data['sequence_number']
         )
