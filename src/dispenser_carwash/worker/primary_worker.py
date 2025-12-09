@@ -229,19 +229,30 @@ class PrimaryWorker:
 
     def _estimate_waiting_time(
         self,
+        mode:str,
         queue_in_front: int,
         est_min_const: int,
         est_max_const: int,
         time_per_car: int
     ) -> Dict[str, Any]:
         # in minutes
+        estimated = None 
+        est_min = None 
+        est_max = None 
+        
+        
+        if mode == "AUTO":
+            estimated = queue_in_front * time_per_car
+        
+            if estimated < 0:
+                raise ValueError(f"Estimated should be postitive num. Queue val: {queue_in_front} and Time per car val: {time_per_car}")
                 
-        estimated = queue_in_front * time_per_car
-        if estimated < 0:
-            raise ValueError(f"Estimated should be postitive num. Queue val: {queue_in_front} and Time per car val: {time_per_car}")
-            
-        est_min = estimated - est_min_const
-        est_max = estimated + est_max_const
+            est_min = estimated - est_min_const
+            est_max = estimated + est_max_const
+        
+        elif mode == "MANUAL":
+            est_min = est_min_const
+            est_max = est_max_const        
         
         if est_max < 1 or est_min < 1:
             est_min, est_max = 0, 0
