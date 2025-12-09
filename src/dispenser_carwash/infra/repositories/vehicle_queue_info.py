@@ -43,7 +43,7 @@ class VehicleQueueInfoRepository(IVehicleQueueInfoRepository):
             ) from e
             
     
-    async def get_vehicle_queue(self):
+    async def get_vehicle_queue_info(self):
         try:
             resp = await self._http.post("/ticket/vehicle-queue") # dari COUNT(ticket where PEDNING) 
             body = resp.json()       
