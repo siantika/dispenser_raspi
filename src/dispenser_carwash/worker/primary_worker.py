@@ -265,11 +265,13 @@ class PrimaryWorker:
         }
         
     def welcome(self):
-        self._to_net.put_nowait= QueueMessage.new(
+        self._to_net.put_nowait(QueueMessage.new(
             QueueTopic.NETWORK,
             MessageKind.COMMAND,
             {"cmd": "GET_QUEUE_VEHICLE_INFO"}
-        )
+        ))
+        self.logger.info("Mengirim GET QUEUE VEHICLE command to net work")
+        
         payload = None 
         queue_in_front = 0
         est_min = 0
