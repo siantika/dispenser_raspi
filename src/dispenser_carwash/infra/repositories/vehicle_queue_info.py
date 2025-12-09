@@ -22,7 +22,7 @@ class VehicleQueueInfoRepository(IVehicleQueueInfoRepository):
         
     async def get_estimation(self) ->EstimationResponseDTO:
         try:
-            resp = await self._http.post("/estimation")
+            resp = await self._http.get("/estimation")
             body = resp.json()       
             payload = body.get("data") 
             if payload is None:
@@ -45,7 +45,7 @@ class VehicleQueueInfoRepository(IVehicleQueueInfoRepository):
     
     async def get_vehicle_queue_info(self):
         try:
-            resp = await self._http.post("/ticket/vehicle-queue") # dari COUNT(ticket where PEDNING) 
+            resp = await self._http.get("/ticket/vehicle-queue") # dari COUNT(ticket where PEDNING) 
             body = resp.json()       
             payload = body.get("data") 
             if payload is None:
