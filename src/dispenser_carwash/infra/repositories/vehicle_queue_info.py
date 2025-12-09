@@ -34,12 +34,12 @@ class VehicleQueueInfoRepository(IVehicleQueueInfoRepository):
         except HTTPStatusError as e:
             status = e.response.status_code
             raise VehicleQueueInfoRepositoryError(
-                f"Server error when creating VehicleQueueInfo: {status}"
+                f"Server error when fetching VehicleQueueInfo: {status}"
             ) from e
 
         except RequestError as e:
             raise VehicleQueueInfoRepositoryError(
-                "Network unreachable when creating ticket"
+                "Network unreachable when fetching ticket"
             ) from e
             
     
@@ -57,12 +57,12 @@ class VehicleQueueInfoRepository(IVehicleQueueInfoRepository):
         except HTTPStatusError as e:
             status = e.response.status_code
             raise VehicleQueueInfoRepositoryError(
-                f"Server error when creating VehicleQueueInfo: {status}"
+                f"Server error when fetching VehicleQueueInfo: {status}"
             ) from e
 
         except RequestError as e:
             raise VehicleQueueInfoRepositoryError(
-                "Network unreachable when creating ticket"
+                "Network unreachable when fetching vehicle queue info"
             ) from e
             
     
