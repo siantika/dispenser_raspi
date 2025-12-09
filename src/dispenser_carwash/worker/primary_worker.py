@@ -318,7 +318,7 @@ class PrimaryWorker:
         estimated = self._estimate_waiting_time(mode,
                                                 queue_in_front, est_min, est_max, per_car_minutes)
             
-        if mode is None:
+        if mode is not None:
             self._play_till_finish("new_welcome")
             self._play_till_finish("saat_ini")
             time_sleep.sleep(0.4)
