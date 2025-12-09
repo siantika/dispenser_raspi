@@ -18,7 +18,7 @@ class EstimationResponseDTO:
 
 class VehicleQueueInfoRepository(IVehicleQueueInfoRepository):
     def __init__(self, http:AsyncHttpClient):
-        self.http = http 
+        self._http = http 
         
     async def get_estimation(self) ->EstimationResponseDTO:
         try:
