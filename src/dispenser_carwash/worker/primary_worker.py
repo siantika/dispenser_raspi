@@ -22,6 +22,7 @@ from dispenser_carwash.config.settings import Settings
 from dispenser_carwash.domain.entities.device import DeviceStatus
 from dispenser_carwash.domain.entities.service_type import ServiceType
 from dispenser_carwash.domain.entities.ticket import Ticket
+from dispenser_carwash.domain.entities.vehicle_queue import EstimationModeEnum
 from dispenser_carwash.utils.logger import setup_logger
 from dispenser_carwash.worker.dto.queue_dto import MessageKind, QueueMessage, QueueTopic
 
@@ -207,7 +208,7 @@ class PrimaryWorker:
     memutar selamat datang dan jumlah antrian dan estimasi dipanggil.
     update setiap 10 detik di net, di sini kirim payload request aja
     args:
-    jumlah antrian, optional estimasi waktu antrian (min_max)
+    jumlah antrian, optional per_car_minute, estimasi waktu antrian (min_max)
     bahkan bisa OFF juga
     Response
             {
@@ -217,128 +218,155 @@ class PrimaryWorker:
             "est_max": 5
             }
     """
-    def _play_till_finish(self, title: str):
+    def _play_interruptible(self, title: str) -> bool:
+        """
+        Play sound but allow interruption if service is selected.
+        Return True jika interrupted (service sudah dipilih).
+        """
         try:
             self._usecase.play_prompt.execute(title)
+
+            # selama suara masih berjalan, cek input tombol
             while self._usecase.play_prompt.sound_player.is_busy():
+                service = self.selecting_service()
+                if service is not None:
+                    self._selected_service = service
+                    self.logger.info(f"Interrupted by service selection: {service}")
+                    self._usecase.play_prompt.sound_player.stop()  # stop suara langsung
+                    return True  # interrupted!
+                
                 time_sleep.sleep(0.05)
+
         except Exception as e:
             self.logger.error(f"Sound error: {e}")
-            
-    
+
+        return False
 
     def _estimate_waiting_time(
         self,
-        mode:str,
+        mode: Optional[str],
         queue_in_front: int,
         est_min_const: int,
         est_max_const: int,
-        time_per_vehicle: int
-    ) -> Dict[str, Any]:
-        # in minutes
-        estimated = None 
-        est_min = None 
-        est_max = None 
-        
-        
+        time_per_vehicle: Optional[int],
+    ) -> Dict[str, int]:
+        """Hitung estimasi waktu tunggu dalam menit."""
+
+        # mode tidak diketahui / OFF
+        if mode not in {"AUTO", "MANUAL"}:
+            return {
+                "queue_in_front": max(queue_in_front, 0),
+                "est_min": 0,
+                "est_max": 0,
+            }
+
         if mode == "AUTO":
+            if time_per_vehicle is None:
+                raise ValueError("time_per_vehicle wajib ada kalau mode=AUTO")
+
             estimated = queue_in_front * time_per_vehicle
-        
             if estimated < 0:
-                raise ValueError(f"Estimated should be postitive num. Queue val: {queue_in_front} and Time per car val: {time_per_vehicle}")
-                
+                raise ValueError(
+                    "Estimated harus positif. "
+                    f"queue_in_front={queue_in_front}, time_per_vehicle={time_per_vehicle}"
+                )
+
             est_min = estimated - est_min_const
             est_max = estimated + est_max_const
-        
-        elif mode == "MANUAL":
+        else:  # MANUAL
             est_min = est_min_const
-            est_max = est_max_const        
-        
-        if est_max < 1 or est_min < 1:
-            est_min, est_max = 0, 0
-         
-        
+            est_max = est_max_const
+
+        if est_min < 1 or est_max < 1:
+            est_min = est_max = 0
+
         return {
-            "queue_in_front": queue_in_front,
+            "queue_in_front": max(queue_in_front, 0),
             "est_min": est_min,
             "est_max": est_max,
         }
-        
-    def welcome(self):
-        self._to_net.put_nowait(QueueMessage.new(
-            QueueTopic.NETWORK,
-            MessageKind.COMMAND,
-            {"command": "GET_QUEUE_VEHICLE_INFO"}
-        ))
-        self.logger.info("Mengirim GET QUEUE VEHICLE command to net work")
-        
-        payload = None 
-        queue_in_front = 0
-        est_min = 0
-        est_max = 0
-        per_car_minutes = None 
-        mode = None
-        estimated = None 
-        
+
+
+    def _get_queue_info_from_network(self) -> Optional[Dict[str, Any]]:
+        """Minta info antrian ke NetworkWorker, return payload atau None kalau timeout."""
+
+        # pakai 'cmd' supaya konsisten dengan log-mu sebelumnya
+        msg = QueueMessage.new(
+            topic=QueueTopic.NETWORK,
+            kind=MessageKind.COMMAND,
+            payload={"cmd": "GET_QUEUE_VEHICLE_INFO"},
+        )
+        self._to_net.put_nowait(msg)
+        self.logger.info("Mengirim GET_QUEUE_VEHICLE_INFO command ke NetworkWorker")
+
         try:
-            payload:QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
-            payload = payload.payload
-            mode = payload["mode"]
+            resp: QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
+            self.logger.info("Menerima response queue info dari NetworkWorker")
+            return resp.payload or {}
         except Empty:
-            pass 
-        
-        queue_f_net = QueueMessage.new(
-            QueueTopic.PRIMARY,
-            MessageKind.RESPONSE,
+            self.logger.warning(
+                "Timeout menunggu queue info dari NetworkWorker, pakai fallback manual"
+            )
+            return None
+
+
+    def generate_queue_and_estimation(self) -> Dict[str:Any]:
+        """Flow greeting + pengumuman jumlah antrian + estimasi waktu."""
+
+        # 1. Ambil data antrian dari network / pakai fallback manual
+        payload = self._get_queue_info_from_network()
+
+        if not payload:
+            # fallback manual (sementara hardcoded, bisa diganti dari config)
             payload = {
                 "mode": "MANUAL",
-                "queue_in_front":4,
-                "est_min" : 22,
+                "queue_in_front": 4,
+                "est_min": 22,
                 "est_max": 40,
-                "per_car_minutes": 15 
+                "time_per_vehicle": 15,
             }
+
+        mode = payload.get("mode")
+        queue_in_front = int(payload.get("queue_in_front", 0))
+        est_min_const = int(payload.get("est_min", 0))
+        est_max_const = int(payload.get("est_max", 0))
+        time_per_vehicle = payload.get("time_per_vehicle")  # dipakai saat AUTO
+
+        # 2. Hitung estimasi
+        return  self._estimate_waiting_time(
+            mode=mode,
+            queue_in_front=queue_in_front,
+            est_min_const=est_min_const,
+            est_max_const=est_max_const,
+            time_per_vehicle=time_per_vehicle,
         )
+
+    def greet_and_queue_info(
+        self,
+        mode: EstimationModeEnum,
+        queue_in_front: int,
+        est_min: int,
+        est_max: int
+    ):
+        # Welcome
+        if self._play_interruptible("new_welcome"):
+            return  # langsung keluar
+
+        if mode != EstimationModeEnum.OFF:
+            if self._play_interruptible("saat_ini"): return
+            if self._play_interruptible(str(queue_in_front)): return
+            if self._play_interruptible("kendaraan_dalam_antr"): return
+
+            if self._play_interruptible("estimasi_waktu"): return
+            if self._play_interruptible(str(est_min)): return
+            if self._play_interruptible("hingga"): return
+            if self._play_interruptible(str(est_max)): return
+            if self._play_interruptible("menit"): return
+
+        if self._play_interruptible("pilih_jenis_cuci"):
+            return
+
         
-        payload = queue_f_net.payload
-        mode = payload["mode"]
-        
-        if mode == "MANUAL":
-            queue_in_front =  payload["queue_in_front"]
-            est_min = payload["est_min"]
-            est_max = payload["est_max"]
-            per_car_minutes = None 
-            
-        elif mode == "AUTO":
-            queue_in_front =  payload["queue_in_front"]
-            est_min = payload["est_min"]
-            est_max = payload["est_max"]
-            per_car_minutes = payload["per_car_minutes"]
-        
-        else:
-            # ini mode off jika mode == None 
-            pass 
-        
-        estimated = self._estimate_waiting_time(mode,
-                                                queue_in_front, est_min, est_max, per_car_minutes)
-            
-        
-        self._play_till_finish("new_welcome")
-        if mode is not None:
-            self._play_till_finish("saat_ini")
-            time_sleep.sleep(0.4)
-            self._play_till_finish(str(estimated.get("queue_in_front")))
-            self._play_till_finish("kendaraan_dalam_antr")
-            self._play_till_finish("estimasi_waktu")
-            time_sleep.sleep(0.4)
-            self._play_till_finish(str(estimated.get("est_min")))
-            self._play_till_finish("hingga")
-            time_sleep.sleep(0.4)
-            self._play_till_finish(str(estimated.get("est_max")))
-            self._play_till_finish("menit")
-        time_sleep.sleep(0.8)
-        self._play_till_finish("pilih_jenis_cuci")        
-        
-    
     def run(self):
        
         self._initialize_init_data()
@@ -366,7 +394,6 @@ class PrimaryWorker:
             if cur_state != last_state:
                 last_state = cur_state
                 self.logger.info(f"Current State: {cur_state.name}")
-
             is_vehicle_present = self._usecase.detect_vehicle.execute()
 
             # Reset ketika IDLE
@@ -384,9 +411,16 @@ class PrimaryWorker:
             # GREETING
             if self._fsm.state == State.GREETING:
                 # self._usecase.play_prompt.execute("welcome")
-                self.welcome() # NEW
-                self.logger.info(f"Nilai driver sound: {self._usecase.play_prompt.sound_player}")
+                queue_info = self.generate_queue_and_estimation()
                 self._fsm.trigger(Event.GREETING_DONE)
+                self.greet_and_queue_info(
+                    queue_info.get("mode"),
+                    queue_info.get("queue_in_front"),
+                    queue_info.get("est_min"),
+                    queue_info.get("est_max"),
+                    queue_info.get("time_per_vehicle"),
+                    
+                )
               
 
             # SELECTING_SERVICE
