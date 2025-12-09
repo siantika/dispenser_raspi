@@ -310,7 +310,7 @@ class PrimaryWorker:
             return None
 
 
-    def generate_queue_and_estimation(self) -> Dict[str:Any]:
+    def generate_queue_and_estimation(self) -> Dict[str,Any]:
         """Flow greeting + pengumuman jumlah antrian + estimasi waktu."""
 
         # 1. Ambil data antrian dari network / pakai fallback manual
