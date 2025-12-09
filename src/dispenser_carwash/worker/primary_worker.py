@@ -314,7 +314,8 @@ class PrimaryWorker:
             # ini mode off jika mode == None 
             pass 
         
-        estimated = self._estimate_waiting_time(queue_in_front, est_min, est_max, per_car_minutes)
+        estimated = self._estimate_waiting_time(mode,
+                                                queue_in_front, est_min, est_max, per_car_minutes)
             
         if mode is None:
             self._play_till_finish("new_welcome")
