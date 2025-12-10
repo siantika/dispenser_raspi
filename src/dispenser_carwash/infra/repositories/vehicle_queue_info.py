@@ -7,21 +7,25 @@ from dispenser_carwash.domain.interfaces.repositories.i_vehicle_queue_info_repo 
 )
 from dispenser_carwash.infra.http_client import AsyncHttpClient
 from dispenser_carwash.infra.mappers import VehicleQueueInfoMapper
+from dispenser_carwash.utils.logger import setup_logger
 
 
 class VehicleQueueInfoRepository(IVehicleQueueInfoRepository):
     def __init__(self, http:AsyncHttpClient):
         self._http = http 
+        self.logger = setup_logger("Vehicle Queue")
         
     async def get(self):
         try:
             resp = await self._http.get("/vehicle-queue-info")
             body = resp.json()       
             payload = body.get("data") 
+            self.logger.info(f"Ini payload dari queue: {payload}")
             if payload is None:
                 raise VehicleQueueInfoRepositoryError(
                     "Invalid response: 'data' field is missing"
                 )
+            
             return VehicleQueueInfoMapper.from_response(
                 resp
             )
