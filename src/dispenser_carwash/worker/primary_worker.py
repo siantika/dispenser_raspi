@@ -408,6 +408,7 @@ class PrimaryWorker:
                 # self._usecase.play_prompt.execute("welcome")
                 queue_info = self.generate_queue_and_estimation()
                 self._fsm.trigger(Event.GREETING_DONE)
+                self.logger(f"Ini queue infonya {queue_info}")
                 if queue_info:
                     mode_raw = queue_info.get("mode")
                     # convert string -> Enum
