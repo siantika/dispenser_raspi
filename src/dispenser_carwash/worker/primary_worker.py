@@ -284,6 +284,7 @@ class PrimaryWorker:
             est_min = est_max = 0
 
         return {
+            "mode":mode,
             "queue_in_front": max(queue_in_front, 0),
             "est_min": est_min,
             "est_max": est_max,
