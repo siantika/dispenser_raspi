@@ -1,5 +1,3 @@
-from typing import Dict
-
 from dispenser_carwash.domain.entities.vehicle_queue import VehicleQueueInfo
 from dispenser_carwash.domain.exception import VehicleQueueNotExist
 from dispenser_carwash.infra.repositories.vehicle_queue_info import (
@@ -12,17 +10,15 @@ class FetchVehicleQueueInfoUseCase:
         self.repo =  repo
         
     async def execute(self) -> VehicleQueueInfo:
-        est:Dict = await self.repo.get_estimation()
-        vehicle_queue:Dict = await self.repo.get_vehicle_queue()
+        vehicle_queue = await self.repo.get()
         
-        if est is  None or vehicle_queue is None:
-            raise VehicleQueueNotExist(f"Got est: {est} and vehicle_queue: {vehicle_queue}. These are none-type")
-        
-        
+        if vehicle_queue is  None :
+            raise VehicleQueueNotExist(f"Got vehicle_queue: {vehicle_queue}. That is none-type")
+                
         return VehicleQueueInfo(
-            queue_in_front= vehicle_queue.get("vehicle_queue_info"),
-            est_min= est.get("est_min"),
-            est_max= est.get("est_max"),
-            mode = est.get("mode"),
-            time_per_car = est.get("time_per_vehicle", None )
+            queue_in_front= vehicle_queue.queue_in_front,
+            est_min= vehicle_queue.est_min,
+            est_max= vehicle_queue.est_max,
+            mode = vehicle_queue.mode,
+            time_per_car = vehicle_queue.time_per_vehicle
         ) 

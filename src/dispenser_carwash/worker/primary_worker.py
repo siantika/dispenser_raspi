@@ -289,8 +289,6 @@ class PrimaryWorker:
 
     def _get_queue_info_from_network(self) -> Optional[Dict[str, Any]]:
         """Minta info antrian ke NetworkWorker, return payload atau None kalau timeout."""
-
-        # pakai 'cmd' supaya konsisten dengan log-mu sebelumnya
         msg = QueueMessage.new(
             topic=QueueTopic.NETWORK,
             kind=MessageKind.COMMAND,
@@ -317,14 +315,16 @@ class PrimaryWorker:
         payload = self._get_queue_info_from_network()
 
         if not payload:
+            self.logger.warning(f"Payload is empty, value: {payload}")
+            return
             # fallback manual (sementara hardcoded, bisa diganti dari config)
-            payload = {
-                "mode": "MANUAL",
-                "queue_in_front": 4,
-                "est_min": 22,
-                "est_max": 40,
-                "time_per_vehicle": 15,
-            }
+            # payload = {
+            #     "mode": "MANUAL",
+            #     "queue_in_front": 4,
+            #     "est_min": 22,
+            #     "est_max": 40,
+            #     "time_per_vehicle": 15,
+            # }
 
         mode = payload.get("mode")
         queue_in_front = int(payload.get("queue_in_front", 0))
@@ -413,13 +413,23 @@ class PrimaryWorker:
                 # self._usecase.play_prompt.execute("welcome")
                 queue_info = self.generate_queue_and_estimation()
                 self._fsm.trigger(Event.GREETING_DONE)
-                self.greet_and_queue_info(
-                    queue_info.get("mode"),
-                    queue_info.get("queue_in_front"),
-                    queue_info.get("est_min"),
-                    queue_info.get("est_max"),                    
-                )
-              
+                if queue_info:
+                    self.greet_and_queue_info(
+                        queue_info.get("mode"),
+                        queue_info.get("queue_in_front"),
+                        queue_info.get("est_min"),
+                        queue_info.get("est_max"),                    
+                    )
+                else:
+                    # failed or anything wrong in vehicle queue and estimation info
+                    # skip
+                    self.greet_and_queue_info(
+                        "OFF",
+                        0,
+                        0,
+                        0,              
+                    )
+                
 
             # SELECTING_SERVICE
             if self._fsm.state == State.SELECTING_SERVICE and self._selected_service is None:

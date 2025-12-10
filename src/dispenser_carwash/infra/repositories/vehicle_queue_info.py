@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 from httpx import HTTPStatusError, RequestError
 
 from dispenser_carwash.domain.entities.vehicle_queue import VehicleQueueInfo
@@ -8,28 +6,25 @@ from dispenser_carwash.domain.interfaces.repositories.i_vehicle_queue_info_repo 
     IVehicleQueueInfoRepository,
 )
 from dispenser_carwash.infra.http_client import AsyncHttpClient
+from dispenser_carwash.infra.mappers import VehicleQueueInfoMapper
 
-
-@dataclass
-class EstimationResponseDTO:
-    est_min:int 
-    est_max:int 
-    
 
 class VehicleQueueInfoRepository(IVehicleQueueInfoRepository):
     def __init__(self, http:AsyncHttpClient):
         self._http = http 
         
-    async def get_estimation(self) ->EstimationResponseDTO:
+    async def get(self):
         try:
-            resp = await self._http.get("/estimation")
+            resp = await self._http.get("/vehicle-queue-info")
             body = resp.json()       
             payload = body.get("data") 
             if payload is None:
                 raise VehicleQueueInfoRepositoryError(
                     "Invalid response: 'data' field is missing"
                 )
-            return payload
+            return VehicleQueueInfoMapper.from_response(
+                resp
+            )
 
         except HTTPStatusError as e:
             status = e.response.status_code
@@ -42,27 +37,3 @@ class VehicleQueueInfoRepository(IVehicleQueueInfoRepository):
                 "Network unreachable when fetching ticket"
             ) from e
             
-    
-    async def get_vehicle_queue_info(self):
-        try:
-            resp = await self._http.get("/ticket/vehicle-queue") # dari COUNT(ticket where PEDNING) 
-            body = resp.json()       
-            payload = body.get("data") 
-            if payload is None:
-                raise VehicleQueueInfoRepositoryError(
-                    "Invalid response: 'data' field is missing"
-                )
-            return payload
-
-        except HTTPStatusError as e:
-            status = e.response.status_code
-            raise VehicleQueueInfoRepositoryError(
-                f"Server error when fetching VehicleQueueInfo: {status}"
-            ) from e
-
-        except RequestError as e:
-            raise VehicleQueueInfoRepositoryError(
-                "Network unreachable when fetching vehicle queue info"
-            ) from e
-            
-    
