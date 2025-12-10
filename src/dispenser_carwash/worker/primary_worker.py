@@ -247,7 +247,7 @@ class PrimaryWorker:
 
     def _estimate_waiting_time(
         self,
-        mode: Optional[str],
+        mode: EstimationModeEnum,
         queue_in_front: int,
         est_min_const: int,
         est_max_const: int,
@@ -255,13 +255,13 @@ class PrimaryWorker:
     ) -> Dict[str, int]:
         """Hitung estimasi waktu tunggu dalam menit."""
 
-        # mode tidak diketahui / OFF
-        if mode not in {"AUTO", "MANUAL"}:
-            return {
-                "queue_in_front": max(queue_in_front, 0),
-                "est_min": 0,
-                "est_max": 0,
-            }
+        # # mode tidak diketahui / OFF
+        # if mode not in {"AUTO", "MANUAL"}:
+        #     return {
+        #         "queue_in_front": max(queue_in_front, 0),
+        #         "est_min": 0,
+        #         "est_max": 0,
+        #     }
 
         if mode == "AUTO":
             if time_per_vehicle is None:
