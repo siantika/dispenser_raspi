@@ -87,3 +87,9 @@ class GenerateTicketUseCase:
             ticket_number=gen_ticket_number,
             entry_time=datetime.now(UTC),
         )
+        
+    def fallback(self):
+        """ When printer is error, ticket already generated. We need to fallback the ticket number 
+            for the next generation
+        """
+        self._sequence -= 1

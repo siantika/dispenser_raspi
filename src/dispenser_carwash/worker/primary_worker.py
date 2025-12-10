@@ -512,6 +512,8 @@ class PrimaryWorker:
             # FAILED TO PRINT
             """ We don't allow the customer to enter, so we go back to vehicle staying"""
             if self._fsm.state == State.FAILED_TO_PRINT:
+                # fallback the generated ticket once step.
+                self._usecase.generate_ticket.fallback()
                 self._usecase.play_prompt.execute("printer_error", True)
                 time_sleep.sleep(5) ## blocking
             
