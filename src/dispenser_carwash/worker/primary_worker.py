@@ -255,14 +255,6 @@ class PrimaryWorker:
     ) -> Dict[str, int]:
         """Hitung estimasi waktu tunggu dalam menit."""
 
-        # # mode tidak diketahui / OFF
-        # if mode not in {"AUTO", "MANUAL"}:
-        #     return {
-        #         "queue_in_front": max(queue_in_front, 0),
-        #         "est_min": 0,
-        #         "est_max": 0,
-        #     }
-
         if mode == "AUTO":
             if time_per_vehicle is None:
                 raise ValueError("time_per_vehicle wajib ada kalau mode=AUTO")
