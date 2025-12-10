@@ -27,7 +27,7 @@ class VehicleQueueInfoRepository(IVehicleQueueInfoRepository):
                 )
             
             return VehicleQueueInfoMapper.from_response(
-                resp
+                payload
             )
 
         except HTTPStatusError as e:
