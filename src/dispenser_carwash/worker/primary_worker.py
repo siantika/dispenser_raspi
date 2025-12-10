@@ -409,21 +409,20 @@ class PrimaryWorker:
                 queue_info = self.generate_queue_and_estimation()
                 self._fsm.trigger(Event.GREETING_DONE)
                 if queue_info:
+                    mode_raw = queue_info.get("mode")
+                    # convert string -> Enum
+                    mode = (
+                        EstimationModeEnum(mode_raw)
+                        if isinstance(mode_raw, str)
+                        else mode_raw
+                    )
+
                     self.greet_and_queue_info(
-                        queue_info.get("mode"),
+                        mode,
                         queue_info.get("queue_in_front"),
                         queue_info.get("est_min"),
-                        queue_info.get("est_max"),                    
+                        queue_info.get("est_max"),
                     )
-                # else:
-                #     # failed or anything wrong in vehicle queue and estimation info
-                #     # skip
-                #     self.greet_and_queue_info(
-                #         "OFF",
-                #         0,
-                #         0,
-                #         0,              
-                #     )
                 
 
             # SELECTING_SERVICE
