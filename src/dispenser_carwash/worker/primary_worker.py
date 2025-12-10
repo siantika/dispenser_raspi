@@ -415,15 +415,15 @@ class PrimaryWorker:
                         queue_info.get("est_min"),
                         queue_info.get("est_max"),                    
                     )
-                else:
-                    # failed or anything wrong in vehicle queue and estimation info
-                    # skip
-                    self.greet_and_queue_info(
-                        "OFF",
-                        0,
-                        0,
-                        0,              
-                    )
+                # else:
+                #     # failed or anything wrong in vehicle queue and estimation info
+                #     # skip
+                #     self.greet_and_queue_info(
+                #         "OFF",
+                #         0,
+                #         0,
+                #         0,              
+                #     )
                 
 
             # SELECTING_SERVICE
