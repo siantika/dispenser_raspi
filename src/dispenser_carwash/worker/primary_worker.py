@@ -22,7 +22,10 @@ from dispenser_carwash.config.settings import Settings
 from dispenser_carwash.domain.entities.device import DeviceStatus
 from dispenser_carwash.domain.entities.service_type import ServiceType
 from dispenser_carwash.domain.entities.ticket import Ticket
-from dispenser_carwash.domain.entities.vehicle_queue import EstimationModeEnum
+from dispenser_carwash.domain.entities.vehicle_queue import (
+    EstimationModeEnum,
+    VehicleQueueInfo,
+)
 from dispenser_carwash.utils.logger import setup_logger
 from dispenser_carwash.worker.dto.queue_dto import MessageKind, QueueMessage, QueueTopic
 
@@ -287,7 +290,7 @@ class PrimaryWorker:
         }
 
 
-    def _get_queue_info_from_network(self) -> Optional[Dict[str, Any]]:
+    def _get_queue_info_from_network(self) -> Optional[VehicleQueueInfo]:
         """Minta info antrian ke NetworkWorker, return payload atau None kalau timeout."""
         msg = QueueMessage.new(
             topic=QueueTopic.NETWORK,
@@ -317,20 +320,12 @@ class PrimaryWorker:
         if not payload:
             self.logger.warning(f"Payload is empty, value: {payload}")
             return
-            # fallback manual (sementara hardcoded, bisa diganti dari config)
-            # payload = {
-            #     "mode": "MANUAL",
-            #     "queue_in_front": 4,
-            #     "est_min": 22,
-            #     "est_max": 40,
-            #     "time_per_vehicle": 15,
-            # }
-
-        mode = payload.get("mode")
-        queue_in_front = int(payload.get("queue_in_front", 0))
-        est_min_const = int(payload.get("est_min", 0))
-        est_max_const = int(payload.get("est_max", 0))
-        time_per_vehicle = payload.get("time_per_vehicle")  # dipakai saat AUTO
+        
+        mode = payload.mode
+        queue_in_front = payload.queue_in_front
+        est_min_const = payload.est_min
+        est_max_const = payload.est_max
+        time_per_vehicle = payload.time_per_vehicle  # dipakai saat AUTO
 
         # 2. Hitung estimasi
         return  self._estimate_waiting_time(
