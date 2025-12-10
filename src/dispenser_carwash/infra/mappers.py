@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from dispenser_carwash.domain.entities.last_ticket_number import LastTicketNumber
 from dispenser_carwash.domain.entities.service_type import ServiceType
@@ -73,8 +73,15 @@ class VehicleQueueInfoMapper:
         )
         
         
+
+
 class LastTicketNumberNetworkMapper:
-    def from_response(data:  Dict[str, Any]) -> LastTicketNumber:
-        return LastTicketNumber(
-            sequence_number=data['sequence_number']
-        )
+
+    @staticmethod
+    def from_response(data: Optional[Dict[str, Any]]) -> LastTicketNumber:
+        if not data or "sequence_number" not in data:
+            sequence_number = 1
+        else:
+            sequence_number = int(data.get("sequence_number", 1))
+
+        return LastTicketNumber(sequence_number=sequence_number)

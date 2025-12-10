@@ -19,11 +19,6 @@ class LastTicketNumberRepository(ILastTicketNumberRepository):
             body = resp.json()          # {status, message, data: {...}}
 
             payload = body.get("data")  
-            if payload is None:
-                raise LastTicketNumberRepositoryError(
-                    "Invalid response: 'data' field is missing"
-                )
-
             return LastTicketNumberNetworkMapper.from_response(payload)
 
 
