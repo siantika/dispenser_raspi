@@ -302,7 +302,7 @@ class PrimaryWorker:
 
         try:
             resp: QueueMessage = self._from_net.get(timeout=Settings.TIMEOUT_PUT_QUEUE)
-            self.logger.info("Menerima response queue info dari NetworkWorker")
+            self.logger.info(f"Menerima response queue info dari NetworkWorker {resp.payload}")
             return resp.payload or {}
         except Empty:
             self.logger.warning(
@@ -327,6 +327,7 @@ class PrimaryWorker:
         est_max_const = payload.est_max
         time_per_vehicle = payload.time_per_vehicle  # dipakai saat AUTO
 
+        self.logger.info(f"Ini modenya: {mode}")
         # 2. Hitung estimasi
         return  self._estimate_waiting_time(
             mode=mode,
