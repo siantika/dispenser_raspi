@@ -20,5 +20,5 @@ class FetchVehicleQueueInfoUseCase:
             est_min= vehicle_queue.est_min,
             est_max= vehicle_queue.est_max,
             mode = vehicle_queue.mode,
-            time_per_car = vehicle_queue.time_per_vehicle
+            time_per_vehicle = vehicle_queue.time_per_vehicle
         ) 
